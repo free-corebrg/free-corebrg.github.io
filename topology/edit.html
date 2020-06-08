@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<meta http-equiv="Cache-Control" content="no-cache">
+		
+		<title>ITAhM</title>
+		
+		<style>
+@import "/css/style.css";
+@import "/css/fa.css";
+
+body {
+	font-family: arial, tahoma, "맑은 고딕";
+	font-size: 10pt;
+	position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+    background-color: rgba(0, 0, 0, 0.8);
+	margin: 0; padding: 0;
+}
+
+body, input, button {
+	margin: 0;
+	padding: 0; 
+}
+
+svg {
+	width: 100%; height: 100%;
+}
+/* control */
+.control {
+    position: absolute; top: 5px; left: 5px;
+    list-style: none;
+    margin: 0; padding: 0;
+    display: flex;
+    align-items: flex-start;
+}
+
+.control span {
+    font: 20px 'Font Awesome 5 Free';
+    color: #ffffff;
+    cursor: pointer;
+    display: inline-flex; width: 32px; height: 32px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background-color: rgba(0, 132, 255, 0.5);
+}
+
+.control span:hover {
+    background-color: #0084ff;
+}
+
+/* popup */
+.popup_container {
+    position: relative;
+}
+
+.popup {
+    position: absolute;
+    top: 100%; left: 0;
+}
+
+body::before,
+body::after {
+    content: "";
+    position: fixed;
+    z-index: -1;
+}
+
+body::before {
+	top: 0; bottom: 0; left: 0;
+    width: 50%;
+	border-right: 1px dotted #ddd;
+}
+
+body::after {
+	top: 0; right: 0; left: 0;
+    height: 50%;
+	border-bottom: 1px dotted #ddd;
+}
+
+#selector >rect {
+	fill: #ddd;
+	fill-opacity: 0.5;
+	transform-origin: left top;
+}
+
+/* svg*/
+text::selection {
+	background: none;
+}
+
+text {
+	font: 10px "맑은 고딕", Tahoma, Arial;
+	fill: #fff;
+	text-anchor: middle;
+}
+
+#up text {
+    font: 30px 'Font Awesome 5 Free';
+}
+
+polyline {
+    fill: none;
+}
+
+#link polyline {
+    stroke: #ffdf01;
+    stroke-width: 2;
+    stroke-dasharray: 2, 2;
+}
+
+body.match #link polyline {
+    stroke: #00ff00;
+}
+
+#path tspan {
+    alignment-baseline: middle;
+}
+
+g.node >text {
+	font-size: 12px;
+}
+
+g.layer *,
+body.drag #select * {
+	pointer-events: none;
+}
+
+g.layer image {
+	pointer-events: all;
+}
+
+circle {
+    stroke-width: 2;
+	stroke: none;
+	fill: none;
+}
+
+#up circle {
+    stroke: #dddddd;
+    stroke-width: 5;
+    fill: #0084ff;
+}
+
+#select circle {
+	stroke: #dddddd;
+	stroke-dasharray: 2, 2;
+}
+
+#up:hover circle,
+body.drag g.group:hover circle {
+    stroke: #00ff00;
+}
+
+body.link {
+    cursor: url(/img/cur/anchor.cur) 8 8,auto;
+}
+
+:not(#select) >#anchor,
+#anchor.group >#link_anchor,
+.popup_container:not(:hover) .popup,
+body.loading g,
+body.name #node tspan:last-child,
+body.name #select tspan:last-child,
+body:not(.name) #node tspan:first-child,
+body:not(.name) #select tspan:first-child,
+body:not(.exit) #exit,
+body:not(.exit) #up,
+body:not(.drag) #up,
+body:not(.root) .root {
+	display: none;
+}
+
+		</style>
+		
+		<script>
+
+function onSelect(id, group) {
+    parent.showDialog(`/topology/dialog/${group? "group": "node"}.html?id=${id}`);
+}
+
+function onEnter(id) {
+    const search = new URLSearchParams();
+
+    search.set("group", id);
+
+    window.location.search = search;
+}
+
+function onLink(from, to) {
+    parent.showDialog(`/topology/dialog/path.html?from=${Math.min (from, to)}&to=${Math.max (from, to)}`);
+}
+
+function showMessage(xhr) {
+    switch (xhr.status) {
+    case 401:
+        alert("Notice!\n\n"+ "세션 만료.");
+
+        break;
+    default:
+        alert(`Error!\n\n오류코드 ${xhr.status}.`);
+    }
+
+    try {
+        console.log(JSON.parse(xhr.responseText).error);
+    } catch (e) {}
+}
+
+		</script>
+	</head>
+	
+	<body class="name loading">
+		<svg>
+			<g id="container">
+				<g id="path" class="layer"></g>
+                <g>
+                    <g id="up" class="group">
+                        <circle r="30" x="0" y="0"></circle>
+                        <text alignment-baseline="middle">&#xf2f5;</text>
+                    </g>
+                </g>
+                <g id="link" class="layer">
+					<polyline />
+				</g>
+				<g id="node" class="layer"></g>
+				<g id="select" class="layer" transform="translate(0, 0)"></g>
+            </g>
+            <g id="selector" transform="matrix(0, 0, 0, 0, 0, 0)">
+				<rect x="0" y="0" width="1" height="1"></rect>
+			</g>
+		</svg>
+		<ul class="control root">
+            <li>
+                <span title="IP주소 보기" id="display">
+                    &#xf074;
+                </span>
+            </li>
+            <li>
+                <span id="save" title="편집 내용 저장">
+                    &#xf0c7;
+                </span>
+            </li>
+            <li>
+                <span id="refresh" title="새로 고침">
+                    &#xf2f9;
+                </span>
+            </li>
+            <li class="popup_container">
+                <span title="추가">
+                    &#xf067;
+                </span>
+                <div class="popup">
+                    <span id="add_node" title="노드 추가">
+                        &#xf233;
+                    </span>
+                    <span id="add_group" title="그룹 추가">
+                        &#xf5fd;
+                    </span>
+                    <span id="search" title="스마트 탐지">
+                        &#xf002;
+                    </span>
+                </div>
+            </li>
+            <li>
+                <span id="exit" title="상위 이동">
+                    &#xf2f5;
+                </span>
+            </li>
+            <li>
+                <span title="
+==============================
+
+● Click: 선택
+● Shift + Click: 선택 추가
+● Ctrl + Click: 선택 반전
+● Shift + Drag: 영역 선택 추가
+● Crl + Drag: 영역 선택 반전
+● Shift + Click + Click: 링크
+● Click 유지: 그룹 이동 
+● Right Click: 편집
+
+==============================
+                ">
+                    &#xf128;
+                </span>
+            </li>
+		</ul>
+		<div class="bg_loading"></div>
+
+        <script src="/js/ITAhM.js"></script>
+        <script src="/js/icon.js"></script>
+        <script src="/js/request.js"></script>
+        <script src="/topology/edit.js"></script>
+		<script>
+
+const
+    search = new URLSearchParams(window.location.search),
+    $ = {
+        request: new Request(),
+        iconData: ITAhM.iconData,
+        map: {},
+        positionData: parent.getPositionData(),
+        upper: Number(search.get("group")) || undefined
+    };
+
+if (parent !== top) {
+    throw "";
+}
+
+if (parent.account.level === 0) {
+	document.body.classList.add("root");
+}
+
+document.getElementById("save").onclick = function () {	
+	document.body.classList.add("loading");
+
+    $.request.execute({
+        command: "set",
+        target: "position",
+        name: "position",
+        position: $.positionData
+    }, function (e) {
+        switch (this.status) {
+        case 200:
+            alert("Information.\n\n구성의 변경사항을 저장하였습니다.");
+
+            document.body.classList.remove("loading");
+
+            break;
+        default:
+            showMessage(this);
+        }
+    });
+};
+
+document.getElementById("display").onclick = e => document.body.classList.toggle("name");
+
+document.getElementById("refresh").onclick = function () {
+	window.location.reload();
+};
+
+document.getElementById("search").onclick = e => parent.showDialog("/topology/dialog/search.html");
+document.getElementById("add_node").onclick = e => {
+    parent.showDialog("/topology/dialog/node.html");
+}
+document.getElementById("add_group").onclick = e => {
+    parent.showDialog("/topology/dialog/group.html");
+}
+
+function initialize() {
+    let node, pos, icon, link, linkMap = {}, nodeToMap, args;
+
+    if ($.upper) {
+        const
+            upper = $.positionData[String($.upper)].parent,
+            search = new URLSearchParams();
+
+        if (upper) {
+            search.set("group", upper);            
+
+            document.getElementById("up").dataset.id = upper;
+
+            document.getElementById("exit").onclick = e => window.location.search = search;
+        } else {
+            document.getElementById("exit").onclick = e => window.location.replace("/topology/edit.html");
+        }
+
+        document.body.classList.add("exit");
+    }
+
+    for (let id in $.nodeData) {
+        pos = $.positionData[id];
+
+        if (!pos) {
+            pos = {
+                x: 0,
+                y: 0,
+                parent: $.upper
+            };
+
+            $.positionData[id] = pos;
+        } else if (pos.parent && !(pos.parent in $.nodeData)) {
+            pos.parent = $.upper;
+        }
+
+        if (pos.parent !== $.upper) {
+            continue;
+        }
+
+        node = $.nodeData[id];
+        icon = $.iconData[node.type || "unknown"] || $.iconData["unknown"];
+
+        $.map[id] = createDevice({
+            id: id,
+            size: 40,
+            icon: icon.src,
+            name: node.name || node.ip,
+            ip: node.ip || node.name,
+            pos: pos,
+            group: icon.group === "group"
+        });
+    }
+
+    for (let id in $.linkData) {
+        link = $.linkData[id];
+
+        if (!linkMap[link.nodeFrom]) {
+            linkMap[link.nodeFrom] = {};
+        }
+
+        if (!linkMap[link.nodeTo]) {
+            linkMap[link.nodeTo] = {};
+        }
+
+        if (linkMap[link.nodeFrom][link.nodeTo]) {
+            linkMap[link.nodeFrom][link.nodeTo].push(link);
+        } else {
+            linkMap[link.nodeFrom][link.nodeTo] =
+            linkMap[link.nodeTo][link.nodeFrom] = [link];
+        } 
+    }
+
+    for (let nodeFrom in $.pathData) {
+        nodeToMap = $.pathData[nodeFrom];
+
+        link = linkMap[nodeFrom];
+
+        for (let nodeTo in nodeToMap) {
+            if (!(nodeFrom in $.map) && !(nodeTo in $.map)) {
+                continue;
+            }
+
+            args = {
+                from: nodeFrom,
+                to: nodeTo,
+                path: nodeToMap[nodeTo || nodeFrom],
+                links: link && link[nodeTo || nodeFrom]
+            };
+
+            if (!(nodeFrom in $.map)) {
+                args.from = parent.findParentFromStage($.positionData[nodeFrom].parent);
+            } 
+
+            if (!(nodeTo in $.map)) {
+                args.to = parent.findParentFromStage($.positionData[nodeTo].parent);
+            }
+
+            createPath(args);
+        }
+    }
+
+    document.body.classList.remove("loading");
+}
+
+function initNode(e) {
+    switch(this.status) {
+        case 200:
+            $.nodeData = JSON.parse(this.responseText);
+
+            $.request.execute({
+                command: "get",
+                target: "path"
+            }, initPath);
+
+            break;
+        default:
+            showMessage(this);
+    }
+}
+
+function initPath(e) {
+    switch(this.status) {
+        case 200:
+            $.pathData = JSON.parse(this.responseText);
+            
+            $.request.execute({
+                command: "get",
+                target: "link"
+            }, initLink);
+            
+            break;
+        default:
+            showMessage(this);
+    }
+}
+
+function initLink(e) {
+    switch(this.status) {
+        case 200:
+            $.linkData = JSON.parse(this.responseText);
+            
+            $.request.execute({
+                command: "get",
+                target: "icon"
+            }, initIcon);
+        
+            break;
+        default:
+            showMessage(this);
+    }
+}
+
+function initIcon(e) {
+    switch(this.status) {
+        case 200:
+            const iconData = JSON.parse(this.responseText);
+
+            for (let type in iconData) {
+                $.iconData[type] = iconData[type];
+            }
+
+            $.request.execute({
+                command: "get",
+                target: "setting"
+            }, initSetting);
+
+            break;
+        default:
+            showMessage(this);
+    }
+}
+
+function initSetting(e) {
+    switch(this.status) {
+        case 200:
+            const settingData = JSON.parse(this.responseText);
+
+            if ("display" in settingData) {
+                document.body.classList["display" in settingData && settingData.display === "name"? "add": "remove"]("name");
+            }
+            
+            if ("linkColor" in settingData) {
+                //Path.COLOR = settingData.linkColor;
+            }
+
+            if ("linkSize" in settingData) {
+                //Path.WIDTH = settingData.linkSize;
+            }
+            
+            initialize();
+            
+            break;
+        default:
+            showMessage(this);
+    }
+}
+
+$.request.execute({
+    command: "get",
+    target: "node",
+}, initNode);
+
+		</script>
+	
+	</body>
+	
+</html>

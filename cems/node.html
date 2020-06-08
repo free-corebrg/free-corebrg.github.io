@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		
+		<title>List @ ITAhM</title>
+		
+		<style>
+@import "/css/style.css";
+@import "/css/fa.css";
+
+body {
+	position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+	margin: 0; padding: 1em;
+    display: flex; flex-direction: column;
+}
+
+header {
+    flex: none;
+	padding: 1em;
+	display: flex;
+	justify-content: space-between;
+}
+
+main {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.sort::after {
+    font-family: "Font Awesome 5 Free";
+    content: "\f0dc";
+	cursor: pointer;
+    position: absolute; right: 3px;
+}
+
+.sort.sorted::after {
+	content: "\f0de";
+}
+
+.sort.ascending::after {
+	content: "\f0dd";
+}
+
+header input,
+header select {
+	padding: .5em;
+}
+
+nav {
+	display: flex;
+	align-items: center;
+}
+
+nav> div {
+	margin-right: 5px;
+}
+
+nav >img {
+	cursor: pointer;
+}
+
+ul {
+	margin: 0; padding: 0;
+	list-style: none;
+}
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+tbody tr {
+    border-bottom: 1px solid #ffffff;
+}
+
+th {
+    background-color: #34495e;
+    color: #efefef;
+    position: sticky; top: 0;
+}
+
+th:not(:last-of-type) {
+    border-right: 1px solid rgba(52, 73, 94, 0.8);
+}
+
+th,
+td {
+    padding: 1em;
+    box-sizing: border-box;
+	overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+thead th:first-child {
+    overflow: visible;
+}
+
+td:nth-child(3) {
+    padding-left: 3em;
+    background: no-repeat left/2em;
+}
+
+tr:nth-child(odd) {
+	background-color: #ebebeb;
+}
+
+tr >td:first-child {
+    text-align: center;
+    color: #efefef;
+    background-color: #28a745;
+}
+
+tr >td:first-child::before {
+    content: "정상";
+}
+
+tr[data-shutdown] >td:first-child {
+    background-color: #dc3545;
+}
+
+tr[data-shutdown] >td:first-child::before {
+    content: "장애";
+}
+
+tr[data-critical] >td:first-child {
+    background-color: #ffc107;
+}
+
+tr[data-critical] >td:first-child::before {
+    content: "임계";
+}
+
+tr[data-disabled] >td:first-child {
+    background-color: #6c757d;
+}
+
+tr[data-disabled] >td:first-child::before {
+    content: "비활성";
+}
+
+details {
+    position: relative;
+    display: inline-block;
+}
+
+details[open] summary::before {
+    content: "";
+    position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+    background-color: transparent;
+}
+
+summary {
+    width: 3em; height: 1em;
+    border: 1px solid #000000;
+} 
+
+summary::-webkit-details-marker {
+  display: none;
+}
+
+#selector {
+    position: absolute; top: 100%; left: 50%;
+    transform: translateX(-50%);
+    margin-top: 1em;
+    border: 1px solid rgba(27, 31, 35, 0.15);
+    box-shadow: 0 1px 15px rgba(27, 31, 35, 0.15);
+    background-color: #ffffff;
+    pointer-events: none;
+}
+
+#selector li {
+    width: 5em;
+    padding: 1em;
+    margin: 1px;
+    cursor: pointer;
+    pointer-events: all;
+}
+
+.status {
+    background: linear-gradient(to right, #28a745 25%, #ffc107 25%, #ffc107 50%, #dc3545 50%, #dc3545 75%, #6c757d 75%);
+}
+
+.status.normal {
+    background: #28a745;
+}
+
+.status.shutdown {
+    background: #dc3545;
+}
+
+.status.critical {
+    background: #ffc107;
+}
+
+.status.disabled {
+    background: #6c757d;
+}
+
+tr[data-disabled] {
+	color: #999;
+}
+
+#count {
+	font-size: 30px; font-weight: bold;
+	display: inline-block;
+	margin: 0 30px;
+}
+
+.glyph {
+    font: 2em "Font Awesome 5 Free";
+    cursor: pointer;
+    
+}
+
+.glyph:hover {
+    color: #fcba30;
+    transition: color 0.5s linear;
+}
+
+header form input {
+    font-family: "Font Awesome 5 Free";
+}
+
+tr.hidden,
+body.keyword #list tr:not(.keyword),
+#list.normal tr:not([data-normal]),
+#list.critical tr:not([data-critical]),
+#list.shutdown tr:not([data-shutdown]),
+#list.disabled tr:not([data-disabled]) {
+	display: none;
+}
+
+		</style>
+		
+		<script>
+// static function
+const REGEXP_IPV4 = new RegExp("^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\."
+	+ "(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\."
+	+ "(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\."
+	+ "(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$");
+
+function IP2Int(s) {
+	const o = REGEXP_IPV4.exec(s);
+	
+	if(o === null || o.length != 5) return 0xffffffff;
+	
+	var n = 0;
+	for(let i=1; i<5; i++) {
+		n <<= 8;
+		n |= o[i];
+	}
+	
+	return n >>> 0;
+}
+		</script>
+		
+		<script>
+
+//public
+function reload() {
+	window.location.reload();
+}
+
+function onShowStatus() {
+	window.sessionStorage.setItem("node_id", window.selectedID);
+
+    window.location.href = "/resource.html";
+}
+
+function initialize() {
+    const df = document.createDocumentFragment();
+        
+    if ("custom" in window.settingData) {
+		var customs = window.settingData.custom;
+		
+		if (customs) {
+			let df = document.createDocumentFragment();
+			
+			$.customArray = customs.split(",");
+			
+			$.customArray.forEach(function (custom) {
+				df.appendChild(document.createElement("th")).textContent = custom;
+			});
+			
+			$.header.insertBefore(df, $.header.lastElementChild);
+		}
+	}
+    
+    var row;
+
+    for (let id in $.nodeData) {
+        row = createRow(id, $.nodeData[id]);
+
+        if (row) {
+		    df.appendChild(row);
+        }
+    }
+	
+	list.appendChild(df);
+	
+	document.body.classList.remove("loading");
+
+	document.getElementById("count").textContent = count();
+
+    initLabel();
+}
+
+/**
+ * @param {string} id
+ * @param {Object} node
+ **/
+function createRow(id, node) {
+	var
+		row = document.createElement("tr"),
+		type, labels, label;
+        
+    if ("type" in node) {
+        if ($.iconData[node.type].group === "group") {
+            return;
+        }
+    } else {
+		node.type = "unknown";
+	}
+	
+    row.appendChild(document.createElement("td")); // N.1
+	row.appendChild(document.createElement("td")).textContent = node.ip || ""; // N.2
+
+    type = row.appendChild(document.createElement("td")); // N.3
+    
+    type.textContent = node.type;
+	type.style.backgroundImage = `url(${$.iconData[node.type].src})`;
+	
+	row.appendChild(document.createElement("td")).textContent = (protocol => {
+         if (protocol) {
+            switch (protocol.toUpperCase()) {
+            case "ICMP":
+            case "TCP":
+                return protocol.toUpperCase();
+            default:
+                return "SNMP";
+            }
+         } else {
+             return "";
+         }
+    }) (node.protocol); // N.4
+	
+	if ($.customArray) {
+		$.customArray.forEach(function (custom) {
+			row.appendChild(document.createElement("td")).textContent = node.custom && node.custom[custom] || "";
+		});
+	};
+	
+	row.appendChild(document.createElement("td")).textContent = node.name; // N.0
+
+	row.dataset.id = id;
+	
+	if (node.label) {
+		labels = node.label.split(",");
+		
+		for (var i=0, length=labels.length; i<length; i++) {
+			label = labels[i];
+			
+			if (!(label in $.labelMap)) {
+				$.labelMap[label] = [];
+			}
+
+			$.labelMap[label].push(row);
+		}
+	}
+	else {
+		$.labelMap[""].push(row);
+	}
+	
+	if (node.protocol) {
+		if ("status" in node && !node.status) {
+			row.dataset.shutdown = true;
+		}
+		else if ("critical" in node && node.critical) {
+			row.dataset.critical = true;
+		}
+		else {
+			row.dataset.normal = true;
+		}
+	}
+	else {
+		row.dataset.disabled = true;
+	}
+    
+	return row;
+}
+
+function initLabel() {
+    var df = document.createDocumentFragment(),
+        select = document.getElementById("label"),
+		option = document.createElement("option");
+
+	for (let label in $.labelMap) {
+		option = document.createElement("option");
+		
+		option.text = label;
+		
+		df.appendChild(option);
+	}
+	
+	select.insertBefore(df, select.firstChild);
+}
+
+function onSelectStatus (e) {
+    const className = e.target.className;
+    
+    $.list.className = className;
+    $.list.classList.remove("status");
+
+    document.querySelector("summary").className = className;
+
+    document.body.querySelector("details").removeAttribute("open");
+
+	document.getElementById("count").textContent = count();
+}
+
+function onSort (e) {
+	const
+		reverse = !this.classList.toggle("ascending"),
+		df = document.createDocumentFragment();
+
+    this.classList.add("sorted");
+
+	[].slice.call($.list.children).sort(reverse?
+		function (a, b) {
+			const
+				ipA = a.children[1].textContent,
+				ipB = b.children[1].textContent;
+			
+			if (ipA && ipB) {
+				return IP2Int(ipB) - IP2Int(ipA);
+			}
+			else if (ipB) {
+				return 1;
+			}
+			else if (ipA) {
+				return -1;
+			}
+			else {
+				return 0;
+			}
+		}:
+		function (a, b) {
+			const
+				ipA = a.children[1].textContent,
+				ipB = b.children[1].textContent;
+			
+			if (ipA && ipB) {
+				return IP2Int(ipA) - IP2Int(ipB);
+			}
+			else if (ipB) {
+				return 1;
+			}
+			else if (ipA) {
+				return -1;
+			}
+			else {
+				return 0;
+			}
+		}).forEach(function (e) {
+			df.appendChild(e);
+		});
+
+	$.list.appendChild(df);
+}
+
+function onSearch (e) {
+    e.preventDefault();
+    
+    document.body.classList.add("loading", "keyword");
+
+    const keyword = this.elements["keyword"].value;
+
+    if (!keyword) {
+        return $.form.reset();
+    }
+
+    const df = document.createDocumentFragment();
+    
+    for (let row, cols; row = $.list.firstElementChild;) {
+        cols = row.children;
+
+        df.appendChild(row);
+
+        for (var i=0, length=cols.length; i<length; i++) {
+            row.classList.remove("keyword");
+
+            if (cols[i].textContent.indexOf(keyword) !== -1) {
+                row.classList.add("keyword");
+                
+                break;
+            }
+        }
+    }
+    
+    $.list.appendChild(df);
+
+    document.body.classList.remove("loading");
+
+    document.getElementById("count").textContent = count();
+}
+
+function onReset(e) {
+    const df = document.createDocumentFragment();
+
+    document.body.classList.add("loading");
+    
+    for (let row; row = $.list.firstElementChild;) {
+        df.appendChild(row).classList.remove("keyword");
+    }
+
+    document.body.classList.remove("keyword");
+
+    $.list.appendChild(df);
+
+    document.body.classList.remove("loading");
+
+    document.getElementById("count").textContent = count();
+}
+    
+function onSave() {
+	var baseMap = {},
+		etc = [],
+		row = [];
+	
+	row[0] = "Label,Name,Type,Address";
+	
+	if ($.customArray) {
+		$.customArray.forEach(function (custom) {
+			row[0] += (","+ custom);
+		});
+	}
+	
+	var node, label;
+
+	for (let id in $.nodeData) {
+		node = $.nodeData[id];
+
+		if (node.label) {
+			label = node.label.split(",")[0];
+			
+			if (!(label in baseMap)) {
+				baseMap[label] = [];
+			}
+
+			baseMap[label].push(node);
+		}
+		else {
+			etc.push(node);
+		}
+	}
+	
+	const keys = Object.keys(baseMap).sort(function (a, b) {
+		return a.localeCompare(b);
+	});
+
+	keys.push("");
+
+	baseMap[""] = etc;
+
+	keys.forEach(function (label) {
+		baseMap[label].forEach(function (node) {
+			const columns = [label, node.name, node.type, node.ip];
+
+			if ($.customArray) {
+				$.customArray.forEach(function (custom) {
+					columns.push("custom" in node? node.custom[custom] || "": "");
+				});
+			}
+
+			row.push(columns.join(","));
+		});
+	});
+
+	ITAhM.util.download(new Blob(["\ufeff", row.join("\n")] ,{
+		type: "text/csv;charset=utf-8;"
+	}), "node.csv");
+}
+
+function count() {
+	var count = 0;
+
+	[].forEach.call($.list.children, function (row) {
+		if (row.offsetHeight > 0) {
+			count++;
+		}
+	});
+
+	return count;
+}
+
+
+function forEach(a, f) {
+	for (var i=0, _i=a.length; i<_i; i++) {
+		f(a[i]);
+	}
+}
+
+function showMessage(xhr) {
+    switch (xhr.status) {
+    case 401:
+        alert("Notice!\n\n"+ "세션 만료.");
+
+        break;
+    default:
+        alert(`Error!\n\n오류코드 ${xhr.status}.`);
+    }
+
+    try {
+        console.log(JSON.parse(xhr.responseText).error);
+    } catch (e) {}
+}
+
+		</script>
+		
+	</head>
+	
+	<body class="loading">
+        <header>
+            <nav>
+                <i id="count"></i>
+                <div>
+                    <select id="label">
+                        <optgroup>
+                            <option value="">미분류
+                        </optgroup>
+                        <optgroup>
+                            <option selected>모두 보기
+                        </optgroup>
+                    </select>
+                </div>
+                <span class="glyph" id="export" title="CSV 내보내기">&#xf019;</span>
+            </nav>
+            <form>
+                <input type="text" name="keyword" placeholder="IP, Type, Name">
+                <input type="submit" value="&#xf002; 찾기">
+                <input type="reset" value="&#xf2f9; 초기화">
+            </form>
+        </header>
+        <main>
+            <table>
+                <colgroup>
+                    <col width="100">
+                    <col width="200">
+                    <col width="180">
+                    <col width="100">
+                </colgroup>
+                <thead>
+                    <tr id="header">
+                        <th>
+                            <details title="상태별">
+                                <summary class="status"></summary>
+                                <ul id="selector">
+                                    <li class="status normal">정상</li>
+                                    <li class="status shutdown">장애</li>
+                                    <li class="status critical">주의</il>
+                                    <li class="status disabled">비활성</li>
+                                    <li class="status all">전체</li>
+                                </ul>
+                            </details>
+                        </th>
+                        <th id="sort" class="sort">주소</th>
+                        <th>종류</th>
+                        <th>모니터</th>
+                        <th>이름</th>
+                    </tr>
+                </thead>
+                <tbody id="list"></tbody>
+            </table>
+        </main>
+		
+		<div class="bg_loading"></div>
+		
+        <script src="/js/ITAhM.js"></script>
+        <script src="/js/icon.js"></script>
+		<script src="/js/object.js"></script>
+		<script src="/js/request.js"></script>
+		<script>
+
+const $ = {
+        request: new Request(),
+        iconData: ITAhM.iconData,
+        list: document.getElementById("list"),
+        header: document.getElementById("header"),
+        form: document.querySelector("form"),
+        labelMap: {
+            "": []
+        }
+    };
+
+document.getElementById("label").onchange = function () {
+	const
+		df = document.createDocumentFragment(),
+		label = this.value;
+	
+	document.body.classList.add("loading");
+	
+	if (this.selectedIndex === this.options.length -1) {
+		for (let row; row = $.list.firstElementChild;) {
+			df.appendChild(row).classList.remove("hidden");
+		}
+	}
+	else {
+		for (let row; row = $.list.firstElementChild;) {
+			df.appendChild(row).classList[$.labelMap[label].indexOf(row) == -1? "add": "remove"]("hidden");
+		}
+	}
+	
+	$.list.appendChild(df);
+
+	document.body.classList.remove("loading");
+
+	document.getElementById("count").textContent = count();
+};
+
+document.getElementById("selector").onclick = onSelectStatus;
+
+document.getElementById("export").onclick = onSave;
+document.getElementById("sort").onclick = onSort;
+
+$.form.onsubmit = onSearch;
+$.form.onreset = onReset;
+
+function initSetting(e) {
+    switch(this.status) {
+    case 200:
+        window.settingData = JSON.parse(this.responseText);
+        
+        initialize();
+
+        break;
+    case -1:
+        console.trace(this.exception);
+    default:
+        alert(top.getMessage(this.status));
+
+        console.log(this.responseText && JSON.parse(this.responseText).error);
+    }
+}
+
+function initIcon(e) {
+    switch(this.status) {
+    case 200:
+        const iconData = JSON.parse(this.responseText);
+
+        for (let type in iconData) {
+            $.iconData[type] = iconData[type];
+        }
+        
+        $.request.execute({
+            "command": "get",
+            "target": "setting"
+        }, initSetting);
+        
+        break;
+    default:
+        showMessage(this);
+    }
+}
+
+function initNode(e) {
+    switch(this.status) {
+    case 200:
+        $.nodeData = JSON.parse(this.responseText);
+        
+        $.request.execute({
+            "command": "get",
+            "target": "icon"
+        }, initIcon);
+
+        break;
+    default:
+        showMessage(this);
+    }
+}
+
+$.request.execute({
+    "command": "get",
+    "target": "node",
+    "filter": "node"
+}, initNode);
+
+        </script>
+	
+	</body>
+	
+</html>

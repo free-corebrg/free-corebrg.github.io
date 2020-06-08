@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <style>
+
+@import "/css/style.css";
+@import "/css/fa.css";
+
+body {
+    position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+    padding: 0; margin: 0;
+    background: #ffffff url("/img/bg_signin.png") no-repeat center center fixed;
+	background-size: cover;
+}
+
+body:not(.background)::before {
+	content: "";
+	position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+	background-color: rgba(0, 0, 0, 0.8);
+	z-index: -1;
+}
+
+nav {
+    position: absolute; top: 5px; left: 5px;
+    display: flex;
+    font: 20px "Font Awesome 5 Free";
+    color: #ffffff;
+}
+
+nav >span {
+    border-radius: 50%;
+    display: flex; width: 32px; height: 32px;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 132, 255, 0.5);
+    border-color: #0084ff;
+    cursor: pointer;
+    user-select: none;
+}
+
+nav >span:hover {
+    background-color: #0084ff;
+}
+
+svg {
+    width: 100%; height: 100%;
+}
+
+.node * {
+    pointer-events: none;
+}
+
+.node image {
+    pointer-events: all;
+}
+
+.node circle {
+	stroke-width: 5px;
+	stroke: none;
+	fill: none;
+}
+
+.node.critical circle {
+	stroke: #fa0;
+	animation: status 2s infinite;
+}
+
+.node.shutdown circle {
+	stroke: #f00;
+	animation: status 2s infinite;
+}
+
+polyline {
+    fill: none;
+    stroke-dasharray: 5px;
+    animation: flow 0.5s infinite linear;
+}
+
+.path circle {
+    fill: #dddddd;
+}
+
+.path text {
+    cursor: pointer;
+    fill: #fcba30;
+}
+
+.bg_loading {
+    z-index: 9;
+}
+
+@keyframes status {
+	from {
+    	stroke-opacity: 0;
+    }
+    to {
+    	stroke-opacity: 1;
+    }
+}
+
+@keyframes flow {
+    to {
+        stroke-dashoffset: 10px;
+    }
+}
+
+text {
+    font: 12px tahoma, arial, "맑은 고딕";
+    text-anchor: middle;
+    fill: #ffffff;
+}
+
+body.name .node tspan:last-child,
+body:not(.name) .node tspan:first-child,
+body.frame nav,
+body:not(.exit) #exit {
+	display: none;
+}
+            </style>
+            <script>
+
+function showChart(id, index) {
+    const popup = window.open();
+
+    popup.sessionStorage.setItem("node_id", id);
+
+    if (index) {
+        popup.sessionStorage.setItem("chart", "/chart/throughput.html");
+        popup.sessionStorage.setItem("index", index);
+    }
+
+    popup.location.replace("/chart.html")
+}
+
+function onEvent(event) {
+    if (!event || event.level < 0) {
+        return;
+    }
+
+    if (parent === top) {
+        parent.onEvent(event);
+    }
+    
+    if (event.id) {
+        if ($.timer) {
+            clearTimeout($.timer);
+        }
+        
+        $.timer = setTimeout(() => requestAnimationFrame(t => {
+            const
+                id = String(event.id),
+                pos = $.positionData[id],
+                search = new URLSearchParams();
+
+            if (pos.parent) {
+                search.set("group", pos.parent);
+            }
+            
+            search.set("focus", event.id);
+
+            window.location.search = search;
+        }), 1000);
+    }
+}
+
+function createNodeTitle(node) {
+	const title = [];
+    title.push("ID : "+ node.id);
+    if (node.ip) {
+		title.push("IP 주소 : "+ node.ip);
+	}
+
+	if (node.name) {
+		title.push("노드명 : "+ node.name);
+	}
+
+    if("status" in node) {
+        title.push("상태 : "+ (node.status? "정상": "응답 없음"));
+    }
+
+    if("status" in node && node.status && "resource" in node) {
+        let
+            oidData,
+            cpu = [];
+            
+        for (let index in node.resource) {
+            oidData = node.resource[index];
+
+            //응답 속도
+            (function(rtt) {
+                if (rtt) {
+                    title.push("응답속도 : "+ rtt +"ms");
+                }
+
+            })(oidData["1.3.6.1.4.1.49447.1"]);
+            //물리 메모리
+            (function(type, used, size, units) {
+                if (type && type == "1.3.6.1.2.1.25.2.1.2" && used && size && units) {
+                    title.push("물리 메모리 : "+ Math.round(100* Number(used) / Number(size)) +" %");
+                }
+
+            })(oidData["1.3.6.1.2.1.25.2.3.1.2"]
+                , oidData["1.3.6.1.2.1.25.2.3.1.6"]
+                , oidData["1.3.6.1.2.1.25.2.3.1.5"]
+                , oidData["1.3.6.1.2.1.25.2.3.1.4"]);
+            
+            //CPU
+            (function(load) {
+                if (load) {
+                    cpu.push(Number(load));
+                }
+            })(oidData["1.3.6.1.2.1.25.3.3.1.2"]
+                || oidData["1.3.6.1.4.1.9.2.1.5.6"]
+                || oidData["1.3.6.1.4.1.9.9.109.1.1.1.1.3"]
+                || oidData["1.3.6.1.4.1.9.9.109.1.1.1.1.6"]
+                || oidData["1.3.6.1.4.1.6296.9.1.1.1.8"]
+                || oidData["1.3.6.1.4.1.37288.1.1.3.1.1"]);
+        }
+
+        if (cpu.length > 0) {
+            let sum = cpu.reduce((a, b) => Number(a)+ Number(b));
+
+            title.push("프로세서 로드 : "+  Math.min.apply(undefined, cpu).toFixed(2) +", "+ (sum / cpu.length).toFixed(2) +" ,"+ Math.max.apply(undefined, cpu).toFixed(2));
+        }
+    }
+
+	return title.join("\n");
+}
+
+function showSummary(id, device) {
+	$.request.execute({
+        command: "get",
+        target: "node",
+		id: id,
+		resource: true
+	}, function () {
+		switch (this.status) {
+		case 200:
+			const title = createNodeTitle(JSON.parse(this.responseText));
+
+			if (title) {
+                $.title.textContent = title;
+                
+                device.appendChild($.title);
+            }
+
+			break;
+		default:
+			showMessage(this);
+		}
+	});
+}
+
+function showMessage(xhr) {
+    switch (xhr.status) {
+    case 401:
+        alert("Notice!\n\n"+ "세션 만료.");
+
+        break;
+    default:
+        alert(`Error!\n\n오류코드 ${xhr.status}.`);
+    }
+
+    try {
+        console.log(JSON.parse(xhr.responseText).error);
+    } catch (e) {}
+}
+
+            </script>
+        </head>
+        
+        <body class="name loading">
+            <nav>
+                <span title="IP주소 보기" id="display">
+                    &#xf074;
+                </span>
+                <span title="노드 찾기" id="search">
+                    &#xf002;
+                </span>
+                <span title="상위 이동" id="exit">
+                    &#xf2f5;
+                </span>
+            </nav>
+            <div class="bg_loading"></div>
+
+            <script src="/js/ITAhM.js"></script>
+            <script src="/js/icon.js"></script>
+            <script src="/topology/view.js"></script>
+            <script src="/js/request.js"></script>
+            <script>
+const
+    search = new URLSearchParams(window.location.search),
+    $ = {
+        request: new Request(),
+        iconData: ITAhM.iconData,
+        positionData: parent.getPositionData(),
+        upper: Number(search.get("group")) || undefined,
+        focus: Number(search.get("focus")) || undefined,
+        nodeList: [],
+        shutdownList: [],
+        criticalList: [],
+        title: createTitle()
+    };
+
+if (parent !== top) {
+    document.body.classList.add("frame");
+}
+
+document.getElementById("display").onclick = e => document.body.classList.toggle("name");
+
+document.getElementById("search").onclick = function (e) {
+    const keyword = prompt("노드 이름 또는 IP주소를 입력하세요.");
+    
+    if (!keyword) {
+        return;
+    }
+
+    var
+        found = false,
+        node;
+
+    for (let id in $.nodeData) {
+        node = $.nodeData[id];
+
+        if (keyword === node.ip || keyword === node.name) {
+            const
+                pos = $.positionData[id],
+                search = new URLSearchParams();
+            
+            if (pos.parent) {
+                search.set("group", pos.parent);
+                
+            }
+
+            search.set("focus", id);
+
+            window.location.search = search;
+
+            found = true;
+
+            break;
+        }
+    }
+
+    if (!found) {
+        alert("Information.\n\n검색 결과가 없습니다.");
+    }
+};
+
+function initialize() {
+    const
+        linkMap = {};
+    var node, pos, group, link, peerMap, args, id;
+
+    if ($.upper) {
+        const
+            upper = $.positionData[$.upper].parent,
+            search = new URLSearchParams();
+
+        if (upper) {
+            search.set("group", upper);
+
+            document.getElementById("exit").onclick = e =>
+                window.location.search = search;
+        } else {
+            document.getElementById("exit").onclick = e => 
+                window.location.replace(parent.location.pathname.replace(".html", "/view.html"));
+        }
+
+        document.body.classList.add("exit");
+    }
+    
+    for (let id in $.nodeData) {
+        node = $.nodeData[id];
+        pos = $.positionData[id];
+        
+        // 동기화 안된 node의 pos 정보가 없음
+        if (!pos) {
+            $.positionData[id] = pos = {
+                x: 0,
+                y: 0
+            };
+        }
+        
+        // 상위 그룹이 삭제 되었음
+        if (pos.parent && !(pos.parent in $.nodeData)) {
+            pos.parent = undefined;
+        }
+
+        if (pos.parent === $.upper) {
+            $.nodeList.push(id);
+
+            args = {
+                node: node,
+                icon: $.iconData[node.type || "unknown"] || $.iconData["unknown"],
+                position: $.positionData[id]
+            };
+
+            if (args.icon.group === "group") {
+                args.click = e => {
+                    const search = new URLSearchParams();
+        
+                    search.set("group", id);
+
+                    window.location.search = search;
+                };
+
+                args.size = 60;
+            } else if ("protocol" in node) {
+                args.click = e => showChart(id);
+                
+                args.hover = function (e) {
+                    showSummary(id, this);
+                };
+
+                if ("status" in node && !node.status) {
+                    $.shutdownList.push(id);
+                }
+                else if ("critical" in node && node.critical) {
+                    $.criticalList.push(id);
+                }
+            }
+
+            addDevice(args);
+        }
+        else if (group = parent.findParentFromStage(pos.parent)) {
+            // 하위
+            if ("protocol" in node) {
+                if ("status" in node && !node.status) {
+                    $.shutdownList.push(group);
+                }
+                else if ("critical" in node && node.critical) {
+                    $.criticalList.push(group);
+                }
+            }
+        }
+    }
+
+    $.criticalList.forEach(id => setStatus(id, "critical"));
+
+    $.shutdownList.forEach(id => setStatus(id, "shutdown"));
+    
+    for (let id in $.linkData) {
+        link = $.linkData[id];
+
+        if (!linkMap[link.nodeFrom]) {
+            linkMap[link.nodeFrom] = {};
+        }
+
+        if (!linkMap[link.nodeTo]) {
+            linkMap[link.nodeTo] = {};
+        }
+
+        if (linkMap[link.nodeFrom][link.nodeTo]) {
+            linkMap[link.nodeFrom][link.nodeTo].push(id);
+        } else {
+            linkMap[link.nodeFrom][link.nodeTo] =
+            linkMap[link.nodeTo][link.nodeFrom] = [id];
+        } 
+    }
+
+    for (let nodeFrom in $.pathData) {
+        peerMap = $.pathData[nodeFrom];
+
+        for (let nodeTo in peerMap) {
+            if ($.nodeList.indexOf(nodeFrom) === -1 && $.nodeList.indexOf(nodeTo) === -1) {
+                continue;
+            }
+
+            args = {
+                nodeFrom: nodeFrom,
+                nodeTo: nodeTo,
+                posFrom: $.positionData[nodeFrom],
+                posTo: $.positionData[nodeTo],
+                option: peerMap[nodeTo],
+                labelFrom: [],
+                labelTo: []
+            };
+            
+            if (!args.option.color) {
+                args.option.color = $.settingData.linkColor || "#ffffff";
+            }
+
+            if (!args.option.size) {
+                args.option.size = $.settingData.linkSize || 1;
+            }
+
+            if ($.nodeList.indexOf(nodeFrom) === -1) {
+                id = parent.findParentFromStage(args.posFrom.parent);
+
+                if (id !== undefined) {
+                    args.posFrom = $.positionData[id];
+                } else {
+                    args.posFrom = undefined;
+
+                    delete args.option.type;
+                }
+            }
+
+            if ($.nodeList.indexOf(nodeTo) === -1) {
+                id = parent.findParentFromStage(args.posTo.parent);
+
+                if (id !== undefined) {
+                    args.posTo = $.positionData[id];
+                } else {
+                    args.posTo = undefined;
+
+                   delete args.option.type;
+                }
+            }
+
+            link = linkMap[nodeFrom];
+
+            if (link) {
+                link = link[nodeTo];
+
+                if (link) {
+                    link.forEach(id => {
+                        const link = $.linkData[id];
+
+                        if (link.indexFrom) {
+                            args.labelFrom.push({
+                                index: link.indexFrom,
+                                name: link.indexFromName,
+                                click: showChart
+                            });
+                        }
+                        
+                        if (link.indexTo) {
+                            args.labelTo.push({
+                                index: link.indexTo,
+                                name: link.indexToName,
+                                click: showChart
+                            });
+                        }
+                    });
+                }
+            }
+
+            addPath(args);
+        }
+    }
+
+    document.body.classList.remove("loading");
+
+    if ($.focus) {
+        focusDevice($.focus);
+    }
+
+    $.request.listen(onEvent);
+}
+
+function initNode(e) {
+    switch(this.status) {
+        case 200:
+            $.nodeData = JSON.parse(this.responseText);
+            
+            $.request.execute({
+                command: "get",
+                target: "path"
+            }, initPath);
+            
+            break;
+        default:
+            showMessage(this);
+    }
+}
+
+function initPath(e) {
+    switch(this.status) {
+        case 200:
+            $.pathData = JSON.parse(this.responseText);
+            
+            $.request.execute({
+                command: "get",
+                target: "link"
+            }, initLink);
+            
+            break;
+        default:
+            showMessage(this);
+    }
+}
+
+function initLink(e) {
+    switch(this.status) {
+        case 200:
+            $.linkData = JSON.parse(this.responseText);
+            
+            $.request.execute({
+                command: "get",
+                target: "setting"
+            }, initSetting); ;
+        
+            break;
+        default:
+            showMessage(this);
+    }
+}
+
+function initSetting(e) {
+    switch(this.status) {
+        case 200:
+            $.settingData = JSON.parse(this.responseText);
+            
+            if ("background" in $.settingData) {/*
+                document.body.style.backgroundImage = "url("+ $.settingData.background +")";
+
+                document.body.classList.add("background");*/
+            }
+
+            if ("display" in $.settingData && $.settingData.display === "address") {
+                document.body.classList.remove("name");
+            }
+
+            $.request.execute({
+                command: "get",
+                target: "icon"
+            }, initIcon);
+
+            break;
+        default:
+            showMessage(this);
+    }
+}
+
+function initIcon(e) {
+    switch(this.status) {
+        case 200:
+            const iconData = JSON.parse(this.responseText);
+
+            for (let type in iconData) {
+                $.iconData[type] = iconData[type];
+            }
+
+            initialize();
+            
+            break;
+        default:
+            showMessage(this);
+    }
+}
+
+$.request.execute({
+    command: "get",
+    target: "node"
+},initNode);
+
+        </script>
+    </body>
+</html>

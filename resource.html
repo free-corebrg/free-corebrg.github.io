@@ -1,0 +1,1517 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<meta http-equiv="Cache-Control" content="No-Cache">
+		
+		<title>Status @ ITAhM</title>
+
+		<style>
+@import "css/itahm.css";
+
+body {
+	background-color: #4d525a;
+	color: #fff;
+}
+
+article {
+	page-break-inside: avoid;
+}
+
+article {
+	display: flex;
+	justify-content: space-between;
+	flex-wrap: wrap;
+}
+
+h2 {
+    margin: 0 0 0.5em 0;
+    background-color: #777;
+    border-radius: 5px 5px 0 0;
+    padding: 0.5em;
+	text-align: center;
+    text-shadow: 0 2px 3px #000;
+}
+
+section {
+    position: relative;
+	padding: 5px; margin: 5px;
+	border-radius: 5px;
+	background-color: #424242;
+}
+
+section.information {
+    flex: none;
+}
+
+section.hr_processor_load {
+    flex: none;
+}
+
+section.hr_storage_memory {
+	flex: 1 1 250px;
+}
+
+section.response_time {
+	flex: 1 1 400px;
+}
+
+section.hr_storage_used {
+	flex: 1 1 800px;
+}
+
+section.throughput {
+    flex: 1 1 1024px;
+}
+
+.selectable:not(.not):hover {
+    cursor: pointer;
+    outline:3px dotted #ddd;
+}
+
+.not.selectable,
+.not.selectable .selectable {
+	cursor: not-allowed;
+    outline: none;
+}
+
+section.status::after {
+	content: "";
+	position: absolute; top: 1em; left: 1em;
+	display: inline-block;
+	width: 1em; height: 1em;
+	border-radius: 50%;
+	background-color: #0f0;
+}
+
+section.status.critical::after {
+	background-color: #ffa500;
+}
+
+/* hr_processor_load*/
+
+.processor.container {
+    height: 120px;
+    display: flex;
+}
+
+.processor.item {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+.processor.item::after {
+    content: attr(data-rate);
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 18px;
+    font-weight: bolder;
+}
+
+.processor.gauge {
+    font-size: 10px;
+    height: 6em; width: 12em;
+    border-radius: 50% / 100% 100% 0 0;
+    position: relative;
+    overflow: hidden;
+}
+
+.processor.gauge::after {
+    content: "";
+    position: absolute; bottom: 0; left: 50%;
+    width:9em; height: 9em;
+    border-radius: 50%;
+    transform: translate(-50%, 50%);
+    background-color: #424242;
+}
+
+.processor.bar {
+    position: absolute; top: 0; left: 0; bottom: 0; right: 0;
+    border-radius: 50% / 100% 100% 0 0;
+    transform-origin: center bottom;
+}
+
+.processor.bar.green {
+    transform: rotate(calc(-180deg * 0.3));
+    background-color: rgb(0, 255, 0);
+}
+
+.processor.bar.orange {
+    transform: rotate(calc(180deg * 0.7));
+    background-color: rgb(255, 180, 0);
+}
+
+.processor.bar.red {
+    transform: rotate(calc(180deg * 0.9));
+    background-color: rgb(255, 0, 0);
+}
+
+.processor.bar.mask {
+    background-color: #fefefe;
+    transition: 1s linear;
+}
+
+.processor.label {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+ul {
+	list-style: none;
+	margin: 0; padding: 0;
+}
+
+.response.container {
+    height: 120px;
+    display: flex;
+}
+
+.response.chart {
+     flex: 1 1 auto;
+}
+
+.response.time {
+    position: relative;
+    width: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.response.circle {
+    width: 100px; height: 100px;
+    border-radius: 50%;
+    background-color: #333;
+    box-shadow: 0px 0px 3px 2px #aaa;
+}
+
+#response {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    color: #0084ff;
+    font-size: 1.6em;
+    font-weight: bolder;
+    text-shadow: 0 2px 3px #000;
+}
+
+.response iframe {
+    width: 100%; height: 100%;
+    border: none;
+}
+
+/*memory*/
+.memory.container {
+    display: flex;
+}
+
+.memory.gauge {
+    flex: none;
+    position: relative;
+}
+
+.memory.used {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bolder;
+    font-size: 1.5em;
+    color: #0084ff;
+    text-shadow: 0 2px 3px #000;
+}
+
+.memory.gauge::after {
+    position: absolute; top: 50%; left: 50%;
+    content: attr(data-rate);
+    transform: translate(-50%, -50%);
+    font-weight: bolder;
+    font-size: 1em;
+}
+
+.memory.gauge::before {
+    position: absolute; top: 0; left: 100%;
+    content: attr(data-size);
+    border-top: 1px solid #ddd;
+    padding: 5px;
+    font-weight: bolder;
+    font-size: 1.2em;
+}
+
+.cylinder {
+    font-size: 10px;
+	position: relative;
+	overflow: hidden;
+	width: 10em;
+	height: 12em;
+	background-color: rgba(160, 160, 160, 0.5);
+}
+
+.cylinder,
+.cylinder::before,
+.cylinder::after {
+    border-radius: 5em/1.5em;
+}
+
+.cylinder::before,
+.cylinder::after {
+    position: absolute; left: 0; right: 0;
+    height: 3em;
+	background-color: rgba(160, 160, 160, 0.2);
+	content: '';
+}
+
+.cylinder::before {
+    z-index: 1;
+	top: 0;
+}
+
+.cylinder::after {
+	bottom: 0;
+}
+
+.fill {
+	position: absolute; left: 0; right: 0; bottom: -5em;
+	height: 0;
+    padding-top: 3em;
+    transition: 1s linear;
+}
+
+.fill,
+.fill::before {
+    border-radius: 5em/1.5em;
+}
+
+.fill::before {
+	position: absolute; top: 0; right: 0; left: 0;
+	height: 3em;
+	content: '';
+}
+
+.fill.red {
+    background-color: rgba(255, 0, 0, 0.5);
+}
+
+.fill.red::before {
+    background-color: rgb(255, 0,0);
+}
+
+.fill.orange {
+    background-color: rgba(255, 180, 0, 0.5);
+}
+.fill.orange::before {
+    background-color: rgb(255, 180, 0);
+}
+
+.fill.green {
+    background-color: rgba(0, 255, 0, 0.5);
+}
+
+.fill.green::before {
+    background-color: rgb(0, 255, 0);
+}
+/**/
+
+div.tbody {
+	text-align: initial;
+}
+
+/*
+interface, storage 공통
+*/
+.item {
+	display: flex;
+	align-items: center;
+	margin: 3px 0;
+}
+
+.item >li {
+	padding: 3px 0.5em;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.item >li.right {
+	text-align: right;
+}
+
+.item.red >li {
+	border-color: #f00;
+}
+
+.item.red >li >div {
+	background: linear-gradient(to right, rgba(255, 0, 0, 0.5), #f00);
+}
+
+.item.orange >li {
+	border-color: #ffa500;
+}
+
+.item.orange >li >div {
+	background: linear-gradient(to right, rgba(255, 165, 0, 0.5), #ffa500);
+}
+
+.title {
+	padding: 0.5em 0;
+	border-bottom: 1px solid #ddd;
+	margin-bottom: 3px;
+}
+
+.title >li {
+	text-align: center;
+	font-weight: bold;
+	margin: 0.5em 0;
+}
+
+.title >li:not(:last-of-type) {
+	border-right: 1px solid #555;
+}
+
+/*
+interface
+*/
+
+.throughput >li {
+	box-sizing: border-box;
+	flex: 1;
+}
+
+.throughput >li.status {
+	flex: none;
+	width: 3em;
+}
+
+.throughput >li.bandwidth {
+	flex: none;
+	width: 9em;
+}
+
+.throughput >li.error {
+	flex: none;
+	width: 6em;
+}
+
+.throughput.title >li.fixed {
+	flex: none;
+	width: 24em; /* = 9 + 15 */
+}
+
+.throughput.item >li.fixed {
+	flex: none;
+	width: 9em;
+}
+
+.throughput.item >li.rate {
+	flex: none;
+	width: 15em;
+}
+
+.throughput.item >li.status {
+	position: relative;
+	overflow: visible;
+}
+
+.throughput.item >li.status::after {
+	content: "";
+	position: absolute; top: 50%; left: 50%;
+	display: inline-block;
+	width: 1em; height: 1em;
+	border-radius: 50%;
+	transform: translateX(-50%) translateY(-50%);
+	background-color: #0f0;
+}
+
+.throughput.item.critical li.status::after {
+	background-color: #ffa500; 
+}
+
+.throughput.item.shutdown li.status::after {
+	background-color: #f00; 
+}
+
+.throughput.item.disabled li.status::after {
+	background-color: #ddd; 
+}
+
+.throughput.item.disabled {
+	color: #aaa;
+}
+
+/*
+storage
+*/
+.storage.gauge,
+.throughput.gauge {
+    height: 2em;
+    box-sizing: border-box;
+    background: linear-gradient(to right, rgb(0, 255, 0) 70%, rgb(255, 180, 0) 70% 90%, rgb(255, 0, 0) 90%);
+    position: relative;
+}
+
+.storage.gauge::after,
+.throughput.gauge::after {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    content: attr(data-rate);
+    font-weight: bolder;
+}
+
+.storage.mask,
+.throughput.mask {
+    background-color: #424242;
+    position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+    transition: 1s linear;
+}
+
+.hr_storage_used >li {
+	box-sizing: border-box;
+	flex: 1;
+}
+
+.hr_storage_used >li.status {
+	flex: none;
+	width: 3em;
+	position: relative;
+	overflow: visible;
+}
+
+.hr_storage_used >li.size,
+.hr_storage_used >li.fixed {
+	flex: none;
+	width: 10em;
+}
+
+.hr_storage_used >li.rate {
+    flex: none;
+	width: 15em;
+}
+
+.hr_storage_used.item >li.status::after {
+	content: "";
+	position: absolute; top: 50%; left: 50%;
+	display: inline-block;
+	width: 1em; height: 1em;
+	border-radius: 50%;
+	transform: translateX(-50%) translateY(-50%);
+	background-color: #0f0;
+}
+
+.hr_storage_used.item.critical >li.status::after {
+	background-color: #ffa500;
+}
+/**/
+
+.layout {
+	display: none;
+}
+
+.title {
+	display: flex;
+}
+
+section.information table {
+	border-collapse: collapse;
+	width: 280px;
+	table-layout: fixed;
+}
+
+section.information th {
+	text-align: right;
+    font-weight: bold;
+	width: 80px;
+}
+
+section.information td { 
+	text-align: left;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	overflow: hidden;
+}
+
+section.information th,
+section.information td {
+	padding: 3px 1em;
+}
+
+#status::before {
+	font-weight: bold;
+	color: #0f0;
+	content: "정상 ";
+}
+
+label.filter {
+	float: right;
+	font-size: 20px;
+	float: right;
+}
+
+div.flex {
+	display: flex;
+}
+
+div.flex span {
+	flex: 1;
+}
+
+body.shutdown #status::before {
+	color: #f00;
+	content: "응답 없음 ";
+}
+
+body.filter .throughput.item.disabled {
+	display: none;
+}
+
+#frame_response {
+    pointer-events: none;
+}
+
+body:not(.hr_processor_load) section.hr_processor_load,
+body:not(.hr_storage_used) section.hr_storage_used,
+body:not(.hr_storage_memory) section.hr_storage_memory,
+body:not(.throughput) section.throughput,
+body:not(.debug) .throughput >li.debug,
+.application {
+	display: none;
+}
+
+@keyframes vbar {
+	0% {
+		transform: scale(1, 0);
+	}
+	100% {
+		transform: scale(1, 1);
+	}
+}
+
+@keyframes hbar {
+	0% {
+		transform: scale(0, 1);
+	}
+	100% {
+		transform: scale(1, 1);
+	}
+}
+
+/* switch button*/
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 2em;
+    height: 1em;
+    font-size: 20px;
+}
+
+.switch >input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.switch >.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 0.5em;
+}
+
+.switch >.slider:before {
+    position: absolute;
+    content: "";
+    height: 0.6em;
+    width: 0.6em;
+    left: 0.2em;
+    bottom: 0.2em;
+    background-color: #fff;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked +.slider {
+    background-color: #424242;
+}
+
+input:focus +.slider {
+    box-shadow: 0 0 1px #424242;
+}
+
+input:checked + .slider:before {
+    transform: translateX(1em);
+}
+
+/* close-container */
+nav {
+    text-align: right;
+}
+
+.close-container {
+    display: inline-block;
+    position: relative;
+    width: 25px;
+    height: 25px;
+    cursor: pointer;
+}
+
+.close-container::before {
+    display: block;
+    content: "";
+    height: 3px;
+    width: 25px;
+    position: absolute;
+    margin-top: 12px;
+    background-color: #F4A259;
+    border-radius: 2px;
+    transform: rotate(45deg);
+    transition: all .3s ease-in;
+}
+
+.close-container::after {
+    display: block;
+    content: "";
+    height: 3px;
+    width: 25px;
+    position: absolute;
+    margin-top: 12px;
+    background-color: #F4A259;
+    border-radius: 2px;
+    transform: rotate(-45deg);
+    transition: all .3s ease-in;
+}
+
+.close-container label{
+    color: #fff;
+    z-index: 1;
+    font-size: .4em;
+    transition: all .3s ease-in;
+    opacity: 0;
+    pointer-events: none;
+    position: absolute;
+    top: 110%;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.close-container:hover::before {
+    transform: rotate(-45deg);
+    background-color: #0084ff;
+}
+.close-container:hover::after {
+    transform: rotate(45deg);
+    background-color: #0084ff;
+}
+.close-container:hover label{
+    opacity: 1;
+}
+/* close-container */
+
+		</style>
+		
+		<script>
+		
+function createStorageItem(index, label) {
+	const item = storageItem.cloneNode(true);
+	
+	item.children[1].textContent = label;
+
+    window.storageIndexObj[index] = {
+        item: item,
+        used: item.children[3],
+        size: item.children[2],
+        gauge: item.children[4],
+        mask: item.children[4].querySelector(".mask")
+    }
+
+	return item;
+}
+
+function createIFaceItem(index, name, descr, alias, type) {
+	const item = iFaceItem.cloneNode(true);
+
+    window.throughputIndexObj[index] = {
+        item: item,
+        speed: item.children[4],
+        in: item.children[5],
+        inGauge: item.children[6],
+        out: item.children[7],
+        outGauge: item.children[8],
+        err: item.children[9]
+    }
+	
+    item.children[1].textContent = name || alias || descr;
+	item.children[2].textContent =  alias || descr;
+	item.children[3].textContent = type + "("+ ITAhM.snmp.ifType[type] +")";
+
+    if (descr) {
+        item.title = descr;
+    }
+
+	return item;
+}
+
+function initialize(node) {
+    var indexData;
+    const
+        hrProcessorLoad = [],
+        hrStorageUsed = {},
+        hrStorageMemory = {},
+        ifEntry = {};
+
+    for (let index in node.resource) {
+        indexData = node.resource[index];
+
+        //sysName
+        (function(sysName) {
+            if (sysName) {
+                document.getElementById("sys_name").textContent = sysName;
+            }
+        })(indexData["1.3.6.1.2.1.1.5"]);
+
+        //sysDescr
+        (function(sysDescr) {
+            if (sysDescr) {
+                document.getElementById("sys_name").title = sysDescr;
+            }
+        })(indexData["1.3.6.1.2.1.1.1"]);
+
+        //sysObjectID
+        (function(sysObjectID) {
+            if (sysObjectID) {
+                document.getElementById("sys_enterprise").textContent = ITAhM.util.enterpriseFromOID(sysObjectID);
+            }
+        })(indexData["1.3.6.1.2.1.1.2"]);
+
+        //lastResponse
+        (function(lastResponse) {
+            if (lastResponse) {
+                document.getElementById("last_response").textContent = toDateString(lastResponse);
+            }
+        })(indexData["1.3.6.1.4.1.49447.2"]);
+
+        //스토리지, 물리 메모리
+        (function(type, used, size, units, descr) {
+            if (type && used && size && units) {
+                const data = {
+                        used: Number(used),
+                        size: Number(size),
+                        units: Number(units),
+                        descr: descr || undefined
+                    };
+                
+                if (type == "1.3.6.1.2.1.25.2.1.2") {
+                    hrStorageMemory[index] = data;
+
+                    window.memoryIndexArray.push(index);
+                } else if (type == "1.3.6.1.2.1.25.2.1.4") {
+                    hrStorageUsed[index] = data;
+                }
+            }
+        })(indexData["1.3.6.1.2.1.25.2.3.1.2"]
+            , indexData["1.3.6.1.2.1.25.2.3.1.6"]
+            , indexData["1.3.6.1.2.1.25.2.3.1.5"]
+            , indexData["1.3.6.1.2.1.25.2.3.1.4"]
+            , indexData["1.3.6.1.2.1.25.2.3.1.3"]);
+        
+        // 인터페이스
+        (function(descr, type, bandwidth, ifHighSpeed, ifSpeed, aStatus, oStatus, inOcts, outOcts, inErrs, outErrs, name, alias) {
+            if (inOcts && outOcts && (bandwidth || ifHighSpeed || ifSpeed) && inErrs && outErrs && aStatus && oStatus) {
+                const data = {
+                        speed: bandwidth && Number(bandwidth) || ifHighSpeed && Number(ifHighSpeed) *1000000 || ifSpeed && Number(ifSpeed),
+                        inOcts: Number(inOcts),
+                        outOcts: Number(outOcts),
+                        inErrs: Number(inErrs),
+                        outErrs: Number(outErrs),
+                        aStatus: Number(aStatus),
+                        oStatus: Number(oStatus),
+                        type: type && Number(type) || undefined,
+                        descr: descr || undefined,
+                        name: name || undefined,
+                        alias: alias || undefined
+                    };
+                ifEntry[index] = data;
+            }
+        })(indexData["1.3.6.1.2.1.2.2.1.2"]
+            , indexData["1.3.6.1.2.1.2.2.1.3"]
+            , indexData[ITAhM.snmp.oid.bandwidth]
+            , indexData[ITAhM.snmp.oid.ifHighSpeed]
+            , indexData["1.3.6.1.2.1.2.2.1.5"]
+            , indexData["1.3.6.1.2.1.2.2.1.7"]
+            , indexData["1.3.6.1.2.1.2.2.1.8"]
+            , indexData["1.3.6.1.4.1.49447.3.1"]
+            , indexData["1.3.6.1.4.1.49447.3.2"]
+            , indexData["1.3.6.1.4.1.49447.3.3"]
+            , indexData["1.3.6.1.4.1.49447.3.4"]
+            , indexData["1.3.6.1.2.1.31.1.1.1.1"]
+            , indexData["1.3.6.1.2.1.31.1.1.1.18"]);
+            
+        //CPU
+        (function(load) {
+            if (load) {
+                hrProcessorLoad.push(Number(load));
+
+                window.processorIndexArray.push(index);
+            }
+        })(indexData["1.3.6.1.2.1.25.3.3.1.2"]);
+    }
+	
+	document.getElementById("ip").textContent = window.node.ip;
+	
+	if (!("status" in node) || !node.status) {
+		document.body.classList.add("shutdown");
+	}
+	
+    if (hrProcessorLoad.length > 0) {
+        const
+            max = Math.max.apply(undefined, hrProcessorLoad),
+            min = Math.min.apply(undefined, hrProcessorLoad),
+            sum = hrProcessorLoad.reduce((a, b) => Number(a)+ Number(b)),
+            avg = sum / hrProcessorLoad.length,
+            section = document.querySelector("section.hr_processor_load");
+            
+        window.requestAnimationFrame(setProcessor.bind(window, min, avg, max, node.critical["0"] && node.critical["0"]["1.3.6.1.2.1.25.3.3.1.2"]));
+        
+        section.onclick = onSelectResource.bind(undefined, "/chart/processor.html", "0");
+
+        document.body.classList.add("hr_processor_load");
+    }
+
+    if (Object.keys(hrStorageMemory).length > 0) {
+        for (let index in hrStorageMemory) {
+            const
+                indexData = hrStorageMemory[index],
+                section = document.querySelector("section.hr_storage_memory");
+
+            window.requestAnimationFrame(setMemory.bind(window,
+                indexData.used,
+                indexData.size,
+                indexData.units,
+                node.critical[index] &&
+                node.critical[index]["1.3.6.1.2.1.25.2.3.1.6"]));
+
+            section.onclick = onSelectResource.bind(window, "/chart/memory.html", index);
+
+            try {
+                if ([index]) {
+                    section.classList.add("critical");
+                }
+            } catch (e) {}
+
+            break;
+        }
+
+        document.body.classList.add("hr_storage_memory");
+    }
+
+    if (Object.keys(hrStorageUsed).length > 0) {
+        let item, indexData;
+
+        for (let index in hrStorageUsed) {
+            indexData = hrStorageUsed[index];
+
+            item = window.storageArea.appendChild(
+                createStorageItem(index, indexData.descr));
+
+            window.requestAnimationFrame(setStorage.bind(window,
+                index,
+                indexData.used,
+                indexData.size,
+                indexData.units,
+                node.critical[index] &&
+                node.critical[index]["1.3.6.1.2.1.25.2.3.1.6"]));
+
+            item.onclick = onSelectResource.bind(window, "/chart/storage.html", index);
+            
+            document.body.classList.add("hr_storage_used");
+        }
+    }
+    
+    if (Object.keys(ifEntry).length > 0) {
+        let item, indexData, usageIn, usageOut;
+
+        for (let index in ifEntry) {
+            indexData = ifEntry[index];
+
+            item = window.interfaceArea.appendChild(
+                createIFaceItem(
+                    index,
+                    indexData.name,
+                    indexData.descr,
+                    indexData.alias,
+                    indexData.type));
+            
+            if (indexData.aStatus != 1) {
+                item.classList.add("disabled");
+            }
+            else if (indexData.oStatus !== 1) {
+                item.classList.add("shutdown");
+            }
+            
+            window.requestAnimationFrame(setThroughput.bind(window,
+                index,
+                indexData.speed,
+                indexData.inOcts,
+                indexData.outOcts,
+                Math.max(indexData.inErrs, indexData.outErrs)),
+                node.critical[index] &&
+                (node.critical[index]["1.3.6.1.4.1.49447.3.1"] ||
+                node.critical[index]["1.3.6.1.4.1.49447.3.2"] ||
+                node.critical[index]["1.3.6.1.4.1.49447.3.3"] ||
+                node.critical[index]["1.3.6.1.4.1.49447.3.4"]));
+                
+            if (indexData.speed > 0) {
+                item.onclick = onSelectResource.bind(window, "/chart/throughput.html", index);
+                
+                item.children[9].onclick = function (index, e) {
+                    e.stopPropagation();
+
+                    onSelectResource("/chart/error.html", index);
+                }.bind(window, index);
+            }
+            else {
+                item.classList.add("not");
+            }
+        }
+
+        document.body.classList.add("throughput");
+    }
+
+    setDraggable();
+
+	document.body.classList.remove("loading");
+}
+
+function setProcessor(min, avg, max, critical) {
+    const
+        maxItem = document.querySelector(".processor.item.max"),
+        avgItem = document.querySelector(".processor.item.avg"),
+        minItem = document.querySelector(".processor.item.min");
+
+    maxItem.dataset.rate = max.toFixed(2) +"%";
+    avgItem.dataset.rate = avg.toFixed(2) +"%";
+    minItem.dataset.rate = min.toFixed(2) +"%";
+
+    maxItem.querySelector(".mask").style.transform = "rotate(calc(180deg * "+ (max /100) +"))";
+    avgItem.querySelector(".mask").style.transform = "rotate(calc(180deg * "+ (avg /100) +"))";
+    minItem.querySelector(".mask").style.transform = "rotate(calc(180deg * "+ (min /100) +"))";
+
+    document.querySelector("section.hr_processor_load").classList[critical? "add": "remove"]("critical");
+}
+
+function setMemory(used, size, units, critical) {
+    // style에서 ::before ::after의 height와 fill의 padding-top의 값이 padding과 같아야 한다.
+    // height 는 cylinder의 높이와 같아야 한다. font-size * em = height
+
+    const
+        rate = (100* used / size).toFixed(2),
+        green = document.querySelector("div.fill.green"),
+        orange = document.querySelector("div.fill.orange"),
+        red = document.querySelector("div.fill.red"),
+        gauge = document.querySelector(".memory.gauge"),
+        padding = "-3em",
+        height = 12 - 3;
+        
+    if (rate > 90) {
+        red.style.height = (height *0.1 * (rate -90) /10)+ "em";
+        red.style.bottom = height *0.9 +"em";
+        orange.style.height = height *0.2 +"em";
+        orange.style.bottom = height *0.7 +"em";
+        green.style.height = height *0.7 +"em";
+        green.style.bottom = 0;
+    }
+    else if (rate > 70) {
+        red.style.height = 0;
+        red.style.bottom = padding;
+        orange.style.height = (height *0.2 * (rate -70) /20) +"em";
+        orange.style.bottom = height *0.7 +"em";
+        green.style.height = height *0.7 +"em";
+        green.style.bottom = 0;
+    }
+    else {
+        red.style.height = 0;
+        red.style.bottom = padding;
+        orange.style.height = 0;
+        orange.style.bottom = padding;
+        green.style.height = (height *0.7 * rate /70) +"em";
+        green.style.bottom = 0;
+    }
+    
+    gauge.dataset.rate = rate +"%";
+    gauge.dataset.size = ITAhM.util.toBytesString(size * units);
+    document.querySelector(".memory.used").textContent = ITAhM.util.toBytesString(used * units);
+
+    document.querySelector("section.hr_storage_memory").classList[critical? "add": "remove"]("critical");
+}
+
+function setStorage(index, used, size, units, critical) {
+    const
+        obj = window.storageIndexObj[index],
+        rate = used *100 / size;
+
+    obj.size.textContent = ITAhM.util.toBytesString(size * units);
+    obj.used.textContent = ITAhM.util.toBytesString(used * units);
+    obj.gauge.dataset.rate = rate.toFixed(2) +"%";
+    obj.mask.style.left = rate +"%";
+    
+    obj.item.classList[critical? "add": "remove"]("critical");
+}
+
+function setThroughput(index, speed, inOcts, outOcts, errors, critical) {
+    const
+        obj = window.throughputIndexObj[index];
+
+    obj.speed.textContent = ITAhM.util.toBPSString(speed);
+
+    if (speed > 0) {
+        let rate;
+
+        obj.in.textContent = ITAhM.util.toBPSString(inOcts);
+        obj.out.textContent = ITAhM.util.toBPSString(outOcts);
+
+        rate = inOcts *100 /speed;
+
+        obj.inGauge.dataset.rate = rate.toFixed(2) +"%";
+        obj.inGauge.querySelector(".mask").style.left = rate +"%";
+
+        rate = outOcts *100 /speed;
+
+        obj.outGauge.dataset.rate = rate.toFixed(2) +"%";
+        obj.outGauge.querySelector(".mask").style.left = rate +"%";
+    }
+    
+    obj.err.textContent = errors;
+
+    obj.item.classList[critical? "add": "remove"]("critical");
+}
+
+function refresh() {
+    $.request.execute({
+        command: "get",
+        target: "node",
+        id: Number(window.sessionStorage.getItem("node_id")),
+        resource: true
+    }, onUpdate);
+}
+
+function update(node) {
+    const
+        resourceData = node.resource,
+        criticalData = node.critical;
+
+    if (!resourceData) {
+        return;
+    }
+
+    try {
+        window.realtimeObj.data.put(Number(resourceData["0"]["1.3.6.1.4.1.49447.1"]));
+
+        document.getElementById("frame_response").contentWindow.draw(window.realtimeObj);
+
+        document.getElementById("response").textContent = window.realtimeObj.data.last +"ms";
+
+        document.querySelector("section.response_time")
+            .classList[criticalData["0"] && criticalData["0"]["1.3.6.1.4.1.49447.1"]? "add": "remove"]("critical");
+    } catch (e) {}
+
+    if (window.processorIndexArray.length > 0) {
+        try {
+
+        } catch (e) {}
+        
+        try {
+            const load = [];
+
+            window.processorIndexArray.forEach (index => load.push(Number(resourceData[index]["1.3.6.1.2.1.25.3.3.1.2"])));
+
+            setProcessor(Math.min.apply(undefined, load),
+                load.reduce((a, b) => a +b) / load.length,
+                Math.max.apply(undefined, load),
+                criticalData["0"] &&
+                criticalData["0"]["1.3.6.1.2.1.25.3.3.1.2"]);
+        } catch (e) {}
+    }
+
+    if (window.memoryIndexArray.length > 0) {
+        try {
+            const
+                index = window.memoryIndexArray[0],
+                indexData = resourceData[index];
+            
+            setMemory(
+                Number(indexData["1.3.6.1.2.1.25.2.3.1.6"]), // used
+                Number(indexData["1.3.6.1.2.1.25.2.3.1.5"]), // size
+                Number(indexData["1.3.6.1.2.1.25.2.3.1.4"]), // units
+                criticalData[index] && criticalData[index]["1.3.6.1.2.1.25.2.3.1.6"]);
+        } catch (e) {}
+    }
+
+    if (Object.keys(window.storageIndexObj).length > 0) {
+        try {
+            let indexData;
+
+            for (let index in window.storageIndexObj) {
+                indexData = resourceData[index];
+
+                setStorage(index,
+                    Number(indexData["1.3.6.1.2.1.25.2.3.1.6"]), // used
+                    Number(indexData["1.3.6.1.2.1.25.2.3.1.5"]), // size
+                    Number(indexData["1.3.6.1.2.1.25.2.3.1.4"]), //units
+                    criticalData[index] && criticalData[index]["1.3.6.1.2.1.25.2.3.1.6"]); 
+            }
+        } catch (e) {}
+    }
+
+    if (Object.keys(window.throughputIndexObj).length > 0) {
+        try {
+            let indexData;
+
+            for (let index in window.throughputIndexObj) {
+                indexData = resourceData[index];
+
+                setThroughput(index,
+                    indexData[ITAhM.snmp.oid.bandwidth] && Number(indexData[ITAhM.snmp.oid.bandwidth]) ||
+                    indexData[ITAhM.snmp.oid.ifHighSpeed] && Number(indexData[ITAhM.snmp.oid.ifHighSpeed]) *1000000|| // ifHighSpeed
+                    indexData["1.3.6.1.2.1.2.2.1.5"] && Number(indexData["1.3.6.1.2.1.2.2.1.5"]), // ifSpeed
+                    Number(indexData["1.3.6.1.4.1.49447.3.1"]), // in
+                    Number(indexData["1.3.6.1.4.1.49447.3.2"]), // out
+                    Math.max(Number(indexData["1.3.6.1.4.1.49447.3.3"]), Number(indexData["1.3.6.1.4.1.49447.3.4"])), //err
+                    criticalData[index] &&
+                    (criticalData[index]["1.3.6.1.4.1.49447.3.1"] ||
+                    criticalData[index]["1.3.6.1.4.1.49447.3.2"] ||
+                    criticalData[index]["1.3.6.1.4.1.49447.3.3"] ||
+                    criticalData[index]["1.3.6.1.4.1.49447.3.4"]));
+            }
+        } catch (e) {
+            console.trace(e);
+        }
+    }
+}
+
+function onUpdate() {
+    switch (this.status) {
+    case 200:
+        update(JSON.parse(this.responseText));
+
+        break;
+    }
+
+    setTimeout(refresh, 10000);
+}
+
+function toDateString(millis) {
+	var date = new Date(millis),
+		ar = [date.getFullYear()],
+		mdh = [date.getMonth() +1, date.getDate(), date.getHours(), date.getMinutes(), date.getSeconds()];
+	
+	for (let i=0, _i=mdh.length, d; i<_i; i++) {
+		d = mdh[i];
+		
+		ar[ar.length] = (d < 10? "0": "")+ d;
+	}
+	
+	return ar[0] +"-"+ ar[1] +"-"+ ar[2] +" "+ ar[3] +":"+ ar[4] +":"+ ar[5];
+}
+
+//public
+function selectResource(resource, index) {
+	requestAnimationFrame(function f () {
+		if (window.node) {
+			onSelectResource(resource, index);	
+		}
+		else {
+			requestAnimationFrame(f);
+		}
+	});
+}
+
+//private
+function onSelectResource(chart, index) {
+    window.sessionStorage.setItem("chart", chart);
+    window.sessionStorage.setItem("index", index);
+    window.sessionStorage.setItem("previous", "/resource.html");
+
+    window.location.href = "/chart/chart.html";
+}
+
+function setDraggable() {
+    [].forEach.call(document.body.querySelectorAll("section"), section => {
+		section.draggable = true;
+		
+		section.addEventListener("dragstart", function (e) {
+			e.stopPropagation();
+			
+			window.draggable = this;
+		});
+		
+		section.addEventListener("dragover", function (e) {
+			e.preventDefault();
+			
+			if (window.draggable === this) {
+				return;
+			}
+			
+			switch (window.draggable) {
+			case this.previousElementSibling:
+				this.parentNode.insertBefore(this, window.draggable);
+				
+				break;
+			default:
+				this.parentNode.insertBefore(window.draggable, this);
+			}
+		});
+	});
+}
+
+function showMessage(xhr) {
+    switch (xhr.status) {
+    case 401:
+        alert("Notice!\n\n"+ "세션 만료.");
+
+        break;
+    default:
+        alert(`Error!\n\n오류코드 ${xhr.status}.`);
+    }
+
+    try {
+        console.log(JSON.parse(xhr.responseText).error);
+    } catch (e) {}
+}
+
+		</script>
+	</head>
+
+	<body class="loading filter">
+		<nav>
+            <div class="close-container" id="close">
+                <label>CLOSE</label>
+            </div>
+        </nav>
+		<article>
+			<section class="information">
+                <h2>기본 정보</h2>
+				<table>
+					<tr>
+						<th>장비명</th>
+						<td id="sys_name"></td>
+					</tr>
+					<tr>
+						<th>공급자</th>
+						<td id="sys_enterprise"></td>
+					</tr>
+					<tr>
+						<th>IP 주소</th>
+						<td id="ip"></td>
+					</tr>
+					<tr>
+						<th>마지막 응답</th>
+						<td id="last_response"></td>
+					</tr>
+					<tr>
+						<th>상태</th>
+						<td id="status"></td>
+					</tr>
+				</table>
+			</section>
+			
+			<section class="hr_processor_load resource status selectable">
+				<h2>프로세서 로드</h2>
+				<div class="processor container">
+                    <div class="processor item min">
+                        <div class="processor gauge">
+                            <div class="processor bar green"></div>
+                            <div class="processor bar orange"></div>
+                            <div class="processor bar red"></div>
+                            <div class="processor bar mask"></div>
+                        </div>
+                        <div class="processor label">최소</div>
+                    </div>
+                    <div class="processor item avg">
+                        <div class="processor gauge">
+                            <div class="processor bar green"></div>
+                            <div class="processor bar orange"></div>
+                            <div class="processor bar red"></div>
+                            <div class="processor bar mask"></div>
+                        </div>
+                        <div class="processor label">평균</div>
+                    </div>
+                    <div class="processor item max">
+                        <div class="processor gauge">
+                            <div class="processor bar green"></div>
+                            <div class="processor bar orange"></div>
+                            <div class="processor bar red"></div>
+                            <div class="processor bar mask"></div>
+                        </div>
+                        <div class="processor label">최대</div>
+                    </div>
+					<div id="hr_processor_load"></div>
+				</div>
+			</section>
+			
+			<section class="hr_storage_memory resource status selectable">
+				<h2>물리적 메모리</h2>
+				<div class="memory container">
+                    <div class="memory gauge">
+                        <div class="cylinder">
+                            <div class="fill green"></div>
+                            <div class="fill orange"></div>
+                            <div class="fill red"></div>
+                        </div>
+                    </div>
+                    <div class="memory used">
+                    </div>
+				</div>
+			</section>
+			
+			<section class="response_time resource status selectable">
+                <h2>응답 시간</h2>
+                <div class="response container">
+                    <div class="response time">
+                        <div class="response circle">
+                            <span id="response">20ms</span>
+                        </div>
+                    </div>
+                    <div class="response chart">
+                        <iframe id="frame_response"></iframe>
+                    </div>
+                </div>
+			</section>
+            
+            <section class="hr_storage_used resource">
+                <h2>스토리지</h2>
+                <div class="storage container">
+                    <div class="storage table">
+                        <ul class="title hr_storage_used">
+                            <li class="status">상태
+                            <li >이름
+                            <li class="size">크기
+                            <li class="fixed">사용량
+                            <li class="rate">사용률
+                        </ul>
+                        <div id="hr_storage_used" class="tbody"></div>
+                    </div>
+                </div>
+            </section>
+            
+			<section class="throughput resource">
+				<h2>통신
+                    <label class="switch filter" title="비활성 인터페이스 표시">
+                        <input type="checkbox" id="filter">
+                        <span class="slider"></span>
+                    </label>
+				</h2>
+				<div>
+					<ul class="title throughput">
+						<li class="status">상태
+						<li>이름
+						<li>설명
+						<li class="debug">종류
+						<li class="bandwidth">대역폭
+						<li class="input fixed">수신
+						<li class="output fixed">송신
+						<li class="error">에러
+					</ul>
+					<div id="throughput"  class="tbody"></div>
+				</div>
+			</section>
+		</article>
+
+		<div class="bg_loading"></div>
+		
+		<div class="layout">
+			<ul class="hr_storage_used item selectable">
+				<li class="status"></li>
+				<li></li>
+				<li class="size right"></li>
+				<li class="fixed right"></li>
+				<li class="rate storage gauge">
+                    <div class="storage mask"></div>
+                </li>
+			</ul>		
+	
+			<ul class="throughput item selectable">
+				<li class="status">
+				<li>
+				<li>
+				<li class="debug">
+				<li class="bandwidth right">
+				<li class="fixed right">
+				<li class="rate throughput gauge">
+					<div class="throughput mask"></div>
+				<li  class="fixed right">
+                <li class="rate throughput gauge">
+					<div class="throughput mask"></div>
+				<li class="error right selectable">
+			</ul>
+		</div>
+	
+		<script src="/js/ITAhM.js"></script>
+        <script src="/js/snmp.js"></script>
+        <script src="/js/request.js"></script>
+		<script>
+
+const $ = {
+        request: new Request()
+    };
+
+var 
+	processorArea = document.getElementById("hr_processor_load"),
+	storageArea = document.getElementById("hr_storage_used"),
+	interfaceArea = document.getElementById("throughput"),
+	gauge = document.querySelector(".gauge"),
+	storageItem = document.querySelector(".hr_storage_used.item"),
+    iFaceItem = document.querySelector(".throughput.item"),
+    processorIndexArray = []
+    memoryIndexArray = [],
+    storageIndexObj = {},
+    throughputIndexObj = {};
+
+document.querySelector(".response_time").onclick = onSelectResource.bind(window, "/chart/responseTime.html", "0");
+
+document.getElementById("filter").onclick = function (e) {
+	document.body.classList[this.checked? "remove": "add"]("filter");
+};
+
+document.getElementById("close").onclick = e => {
+	window.location.replace("/itahm.html");
+};
+
+document.getElementById("frame_response").onload = function (e) {
+    window.realtimeObj = {
+        data: new this.contentWindow.RealtimeData()
+    };
+
+    refresh();
+};
+
+if (window.sessionStorage.getItem("node_id")) {
+    $.request.execute({
+        command: "get",
+        target: "node",
+		id: Number(window.sessionStorage.getItem("node_id")),
+		resource: true
+	}, function () {
+		switch (this.status) {
+			case 200:
+				window.node = JSON.parse(this.responseText);
+                    
+                initialize(window.node);
+
+                document.getElementById("frame_response").src ="/chart/realtime_response.html";
+
+				break;
+			default:
+				showMessage(this);
+		}
+	});	
+}
+
+		</script>
+	
+	</body>
+</html>

@@ -1,0 +1,143 @@
+@charset "utf-8";
+
+body  {
+	font-family: arial, tahoma, "맑은 고딕";
+	font-size: 10pt;
+}
+
+.btn_close {
+  position: relative;
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.btn_close::before,
+.btn_close::after {
+  content: "";
+  position: absolute;
+  height: 0.2em;
+  margin-top: -0.1em;
+  width: 100%;
+  top: 50%;
+  left: 0;
+  background: #000;
+}
+
+.btn_close.round {
+  border-radius: 50%;
+}
+
+.btn_close::after {
+	transform: rotate(-45deg);
+}
+
+.btn_close::before {
+	transform: rotate(45deg);
+}
+
+.btn_close.b1::before,
+.btn_close.b1::after {
+	height: 0.2em;
+	margin-top: -0.1em;
+}
+
+.btn_close.bold::before,
+.btn_close.bold::after {
+	height: 0.3em;
+	margin-top: -0.15em;
+}
+
+.btn_close.bolder::before,
+.btn_close.bolder::after {
+	height: 0.4em;
+	margin-top: -0.2em;
+}
+
+body:not(.loading) .bg_loading {
+	display: none;
+}
+
+.bg_loading {
+	position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+	background: #4d525a url("/img/loading.gif") no-repeat center;
+	background-size: 32px 32px;
+}
+
+.btn.normal {
+    position: relative;
+    cursor: pointer;
+    background-color: #7e8c8d;
+    border-color: #7e8c8d;
+    box-shadow: 0 3px 0 #4e5b5c;
+    padding: 0.5em;
+}
+
+.btn.normal:hover {
+    background-color:#6a7879;
+}
+
+.btn.normal:active{
+    top: 3px;
+    outline: none;
+    box-shadow: none;
+}
+
+/* switch button*/
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 2em;
+    height: 1em;
+    font-size: 20px;
+}
+
+.switch >input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.switch >.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+}
+
+.switch >.slider:before {
+    position: absolute;
+    content: "";
+    height: 0.8em;
+    width: 0.8em;
+    left: 0.1em;
+    bottom: 0.1em;
+    background-color: #fff;
+    transition: .4s;
+}
+
+input:checked +.slider {
+    background-color: #2196F3;
+}
+
+input:focus +.slider {
+    box-shadow: 0 0 1px #2196F3;
+}
+
+input:checked + .slider:before {
+    transform: translateX(1em);
+}
+
+.switch >.slider.round {
+    border-radius: 0.5em;
+}
+
+.switch >.slider.round:before {
+    border-radius: 50%;
+}

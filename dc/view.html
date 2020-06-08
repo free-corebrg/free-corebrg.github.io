@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <style>
+
+@import "/css/style.css";
+@import "/css/fa.css";
+
+body {
+    font : 10pt "맑은 고딕", Arial, Tahoma;
+    position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+    padding: 0; margin: 0;
+    background: #fff url("/img/bg_signin.png") no-repeat center center fixed;
+	background-size: cover;
+}
+
+body::before {
+	content: "";
+	position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+	background-color: rgba(0, 0, 0, 0.5);
+	z-index: -1;
+}
+
+nav {
+    position: absolute; top: 5px; left: 5px;
+    display: flex;
+    font: 20px "Font Awesome 5 Free";
+    color: #ffffff;
+}
+
+nav >span {
+    border-radius: 50%;
+    display: flex; width: 32px; height: 32px;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 132, 255, 0.5);
+    border-color: #0084ff;
+    cursor: pointer;
+}
+
+nav >span:hover {
+    background-color: #0084ff;
+}
+
+canvas {
+    width: 100%; height: 100%;
+}
+
+body .label {
+    pointer-events: none;
+    font-size: 12px;
+    position: absolute;
+    transform: translateY(-50%);
+    color: #ffffff;
+    background-color: rgba(0, 0, 0, 0.5);
+    pointer-events: none;
+}
+
+body.frame nav,
+body.play #play,
+body:not(.label) .label,
+body.name .label>span:last-child,
+body:not(.name) .label>span:first-child,
+body:not(.root) .root,
+body:not(.play) #stop {
+    display: none;
+}
+
+            </style>
+            <script>
+
+function showChart(id) {
+    const popup = window.open();
+
+    popup.sessionStorage.setItem("node_id", id);
+
+    popup.location.replace("/chart.html")
+}
+
+function onEvent (event) {
+    if (event == null || event.level < 0) {
+        return;
+    }
+
+    if (parent === top) {
+        parent.onEvent(event);
+    }
+    
+    if (event.id) {
+        if ($.timer) {
+            clearTimeout($.timer);
+        }
+        
+        $.timer = setTimeout(() => window.requestAnimationFrame(t => window.location.replace(`/dc/view.html?focus=${event.id}`)) , 1000);
+    }
+}
+
+function Display () {
+    const action = [
+        () => document.body.classList.toggle("name"),
+        () => document.body.classList.toggle("label"),
+        () => {
+            document.body.classList.toggle("name");
+            document.body.classList.toggle("label");
+        }
+    ];
+
+    var i = 0;
+
+    this.update = e => {
+        action[i++ %3]();
+    }
+}
+
+function showMessage(xhr) {
+    switch (xhr.status) {
+    case 401:
+        alert("Notice!\n\n"+ "세션 만료.");
+
+        break;
+    default:
+        alert(`Error!\n\n오류코드 ${xhr.status}.`);
+    }
+
+    try {
+        console.log(JSON.parse(xhr.responseText).error);
+    } catch (e) {}
+}
+
+            </script>
+        </head>
+        
+        <body class="label name loading">
+            <nav>
+                <span title="편집 모드" id="edit" class="root">
+                    &#xf013;
+                </span>
+                <span title="동작 모드" id="play">
+                    &#xf144;
+                </span>
+                <span title="정적 모드" id="stop">
+                    &#xf28d;
+                </span>
+                <span title="라벨 표시" id="display">
+                    &#xf074;
+                </span>
+            </nav>
+
+            <div class="bg_loading"></div>
+            <script src="/js/import/three.js"></script>
+            <script src="/js/import/OrbitControls.js"></script>
+            <script src="/dc/dc.js"></script>
+            <script src="/js/request.js"></script>
+            <script>
+
+const
+    search = new URLSearchParams(window.location.search),
+    $ = {
+        request: new Request(),
+        focus: Number(search.get("focus")) || undefined,
+        modelData: parent.getModelData(),
+        display: new Display(),
+        rackMap: {},
+        devMap: {}
+    };
+
+if (top !== parent) {
+    document.body.classList.add("frame");
+}
+
+if ("level" in parent.account && parent.account.level === 0) {
+    document.body.classList.add("root");
+}
+
+document.getElementById("edit").onclick = e => window.location.replace("/dc/edit.html");
+document.getElementById("display").onclick = e => $.display.update();
+document.getElementById("play").onclick = e => {
+    document.body.classList.add("play");
+
+    play();
+};
+
+document.getElementById("stop").onclick = e => {
+    document.body.classList.remove("play");
+
+    stop();
+};
+
+/**
+ * @param {string} id
+ **/
+function addDevice(id) {
+    const
+        location = $.locationData[id],
+        node = $.nodeData[id],
+        config = {};
+
+    try {
+        config.model = $.modelData[location.maker][location.name];
+    } catch (e) {
+    }
+    
+    if (node && "protocol" in node) {
+        if ("status" in node && !node.status) {
+            config.status = "shutdown";
+        } else if ("critical" in node && node.critical) {
+            config.status = "critical";
+        }
+
+        config.onclick = e => showChart(id);
+    }
+    
+    if (location.node_name || location.node_ip) {
+        config.labels = [location.node_name || location.node_ip, location.node_ip || location.node_name];
+    }
+
+    putDevice($.rackMap[String(location.rack)], createDevice(id, config), location.position);
+}
+
+function initialize() {    
+    draw();
+
+    document.body.classList.remove("loading");
+
+    if ($.focus) {
+        focusDevice(String($.focus));
+    }
+
+    $.request.listen(onEvent);
+}
+
+function initLocation() {
+    switch (this.status) {
+    case 200:
+        $.locationData = JSON.parse(this.responseText);
+
+        for (let id in $.locationData) {
+            addDevice(id);
+        }
+        
+        initialize();
+
+        break;
+    default:
+        showMessage(this);
+    }
+}
+
+function initRack () {
+    switch (this.status) {
+    case 200:
+        $.rackData = JSON.parse(this.responseText);
+        
+        const texture = $.modelData["corebridge"]["rack"].front;
+        let rack;
+
+        for (let id in $.rackData) {
+            rack = $.rackData[id];
+            
+            $.rackMap[id] = createRack(texture, rack.unit, rack.x, rack.y);
+        }
+
+        $.request.execute({
+            command: "get",
+            target: "location"
+        }, initLocation);
+
+        break;
+    default:
+        showMessage(this);
+    }
+}
+
+function initNode () {
+    switch (this.status) {
+    case 200:
+        $.nodeData = JSON.parse(this.responseText);
+
+        $.request.execute({
+            command: "get",
+            target: "rack"
+        }, initRack);
+
+        break;
+    default:
+        showMessage(this);
+    }
+}
+
+$.request.execute({
+    command: "get",
+    target: "node"
+}, initNode);
+
+        </script>
+    </body>
+</html>

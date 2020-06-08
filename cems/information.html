@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<meta http-equiv="Cache-Control" content="No-Cache">
+		
+		<title>Setting @ ITAhM</title>
+		
+		<style>
+@import "/css/style.css";
+@import "/css/fa.css";
+
+body {
+	padding: 10px;
+	margin: 0 auto;
+}
+
+h2 {
+	font-size: 20px;
+    color: #4d525a;
+	text-shadow: 0 2px 2px #ddd;
+}
+
+ul {
+	list-style: none;
+}
+
+.item {
+	display: flex;
+	align-items: center;
+}
+
+.item span {
+	margin-left: 10px;
+	padding: .5em 2em;
+}
+
+.item span:hover {
+	cursor: pointer;
+	background-color: #ccc;
+	transition: background-color 0.5s linear;
+}
+
+.layout {
+	display: none;
+}
+
+.list {
+	max-height: 100px;
+	overflow: auto;
+	padding: 1em;
+	border: 1px solid #ddd;
+	background-color: #fdfdfd;
+}
+
+.box {
+	padding: 1em;
+	background-color: #fdfdfd;
+	box-shadow: 0 8px 10px -4px #000;
+}
+
+.container {
+	position: relative;
+}
+
+.top {
+	display: inline-block;
+	vertical-align: top;
+}
+
+#expire:empty {
+	display: none;
+}
+
+#expire:not(:empty)::before {
+	content: "라이선스 만료일: ";
+}
+
+input[type=checkbox] {
+	vertical-align: middle;
+}
+
+form {
+	position: relative;
+}
+
+form input,
+form select {
+	padding: 3px;
+}
+
+input[name="store_date"] {
+	width: 50px;
+	text-align: right;
+}
+
+#event.disabled .setting {
+	display: none;
+}
+
+ul.smtp {
+	display: inline-block;
+	width: 360px;
+}
+
+ul.smtp >li {
+	display: flex;
+}
+
+ul.smtp >li >span:first-child {
+	flex: 1;
+}
+
+ul.smtp >li >span:last-child {
+	flex: 2;
+}
+
+#path:not(:empty)::before {
+	content: "(";
+}
+
+#path:not(:empty)::after {
+	content: ")";
+}
+
+#link input[type=number] {
+	width: 50px;
+	text-align: right;
+}
+
+.bg_loading {
+	position: absolute;
+}
+
+body:not(.loading) .bg_loading {
+	display: initial;
+}
+
+.container:not(.loading) >.bg_loading {
+	display: none;
+}
+
+.logo {
+	margin: 0 1em;
+	vertical-align: bottom;
+}
+
+.button {
+	border:none;
+	display:inline-block;
+	width: 2em; height: 2em;
+	vertical-align:middle;
+	overflow:hidden;
+	color:#000;
+	background-color:#0ff;
+	text-align:center;
+	cursor:pointer;
+	white-space:nowrap;
+	user-select:none;
+	transition:opacity 0s;
+	font-weight: bold;
+	outline: none;
+	border-radius:50%;
+	vertical-align: top;
+}
+
+.button:active{
+	opacity:0.5
+}
+
+.button:hover{
+  box-shadow:0 8px 16px 0 rgba(0,0,0,0.2),0 6px 20px 0 rgba(0,0,0,0.19);
+}
+
+.button:disabled {
+  cursor:not-allowed;
+  opacity:0.3
+}
+
+.button:disabled:hover {
+  box-shadow:none
+}
+
+.logo {
+	margin: 0 1em;
+	vertical-align: bottom;
+}
+
+span.logo {
+    font: 24px "Font Awesome 5 Free";
+}
+
+		</style>
+		<script>
+
+function createItem(src, key, data, func) {
+	const li = document.createElement("li"),
+		img = document.createElement("img"),
+		span = document.createElement("span");
+
+	img.width = 20;
+	img.height = 20;
+	img.src = src;
+
+	span.textContent = key;
+	span.onclick = func.bind(undefined, key, data);
+	
+	li.appendChild(img);
+	li.appendChild(span);
+	li.className = "item";
+
+	return li;
+}
+
+function showMessage(xhr) {
+    switch (xhr.status) {
+    case 401:
+        alert("Notice!\n\n"+ "세션 만료.");
+
+        break;
+    default:
+        alert(`Error!\n\n오류코드 ${xhr.status}.`);
+    }
+
+    try {
+        console.log(JSON.parse(xhr.responseText).error);
+    } catch (e) {}
+}
+
+		</script>
+	</head>
+	
+	<body>
+		<h2>
+			<span class="logo">
+                &#xf05a;
+            </span>
+			정보
+		</h2>
+		<div id="information" class="box container loading">
+			<p>
+				자바 버전 : <span id="java"></span>
+			</p>
+			<p>
+				에이전트 버전 : <span id="version"></span>
+			</p>
+			<p>
+				에이전트 저장공간 여유 :
+				<span id="space"></span>
+				<i id="path"></i>
+			</p>
+			<p>
+				전일 디스크 사용량 : <span id="usage"></span>
+			</p>
+			<p>
+				관리 리소스 갯수 : <span id="resource"></span>
+			</p>
+			<p id="expire"></p>
+			<div class="bg_loading"></div>
+		</div>
+		<h2>
+			<span class="logo">
+                &#xf013;
+            </span>
+			동작
+		</h2>
+		<div id="common" class="box container loading">
+            <p>
+				<form id="request_interval">
+					Ping 요청 주기(초) :
+					<select name="request_interval" disabled>
+						<option value="3000">3
+						<option value="5000">5
+						<option value="10000" selected>10
+						<option value="30000">30
+						<option value="60000">60
+					</select>
+				</form>
+			</p>
+            <p>
+				<form id="timeout">
+					Ping Timeout(초):
+                    <select name="timeout" disabled>
+                        <option value="1000">1
+                        <option value="2000">2
+                        <option value="3000">3
+                        <option value="5000">5
+                        <option value="10000" selected>10
+                    </select>
+                </form>
+			</p>
+            <p>
+				<form id="retry">
+					Ping Retry(초):
+                    <select name="retry" disabled>
+                        <option value="0" selected>0
+                        <option value="1">1
+                        <option value="2">2
+                    </select>
+                </form>
+			</p>
+			<p>
+				<form id="store_date">
+					데이터 보관 기간(일) :
+					<input type="number" min="0" max="365" name="store_date" disabled>
+					<i>(데이터 정리 기능을 사용하지 않는 경우 0)</i>
+				</form>
+			</p>
+			<p>
+				<form id="save_interval">
+					데이터 저장 단위(분) :
+					<select name="save_interval" disabled>
+						<option value="60000">1
+						<option value="120000">2
+						<option value="180000">3
+						<option value="300000">5
+						<option value="600000">10
+					</select>
+				</form>
+			</p>
+			
+			<div class="bg_loading"></div>
+		</div>
+		
+		<script src="/js/ITAhM.js"></script>        
+        <script src="/js/request.js"></script>
+		<script>
+
+const $ = {
+        request: new Request()
+    };
+
+(function(container) {
+	$.request.execute({
+		command: "get",
+        target: "information"
+	}, function () {
+		switch (this.status) {
+			case 200:
+				const information = JSON.parse(this.responseText);
+
+				document.getElementById("java").textContent = information.java;
+				document.getElementById("version").textContent = information.version;
+				document.getElementById("resource").textContent = information.resource;
+				document.getElementById("usage").textContent
+                    = information.usage && ITAhM.util.toBytesString(information.usage) || "제공하지 않음.";
+				document.getElementById("space").textContent = ITAhM.util.toBytesString(information.space);
+				document.getElementById("path").textContent = information.path;
+				document.getElementById("expire").textContent
+					= information.expire > 0? new Date(information.expire).toLocaleString(): "";
+
+				container.classList.remove("loading");	
+
+				break;
+			default:
+				showMessage(this);
+		}
+	});
+}) (document.getElementById("information"));
+
+(function(container) {
+	$.request.execute({
+		command: "get",
+		target: "config"
+	}, function () {
+		switch (this.status) {
+			case 200:
+				const config = JSON.parse(this.responseText);
+                
+				document.querySelector("input[name=store_date]").value = config.storeDate;
+				document.querySelector("select[name=request_interval]").value = config.requestInterval;
+                document.querySelector("select[name=timeout]").value =  config.timeout;
+                document.querySelector("select[name=retry]").value = config.retry;
+                document.querySelector("select[name=save_interval]").value = config.saveInterval;
+
+				container.classList.remove("loading");
+
+				break;
+			default:
+                showMessage(this);
+		}
+	});
+}) (document.getElementById("common"));
+
+		</script>
+	
+	</body>
+	
+</html>

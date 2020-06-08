@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>Event @ ITAhM</title>
+		
+		<style>
+
+@import "/css/fa.css";
+
+body {
+    font: 10pt "맑은 고딕", Arial, Tahoma;
+    margin: 0; padding: 1em;
+	position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+    display: flex; flex-direction: column;
+}
+
+header {
+    position: relative;
+	flex: none;
+	padding: 1em;
+    user-select: none;
+    z-index: 9;
+}
+
+header::after {
+    font-weight: bold;
+    font-size: 1.2em;
+    content: attr(data-date);
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+header >* {
+    cursor: pointer;
+}
+
+body:not(.search) nav {
+    display: none;
+}
+
+main {
+    flex: 1;
+    overflow-y: auto;
+}
+
+body.search #report {
+    color: #fcba30;
+}
+
+input[type=date],
+input[type=text],
+input[type=submit] {
+	font-family: "맑은 고딕", arial, tahoma;
+	padding: 0.5em;
+}
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+    z-index: -1;
+}
+
+.item> li {
+	padding: 0.5em;
+	box-sizing: border-box;
+	overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+main th {
+    background-color: #34495e;
+    color: #efefef;
+    position: sticky; top: 0;
+}
+
+main th,
+main td {
+    padding: 1em;
+}
+
+#list tr {
+    border-bottom: 1px solid #ffffff;
+}
+
+#list tr:nth-child(odd) {
+	background-color: #ebebeb;
+}
+
+#list tr >td:first-child {
+    text-align: center;
+    color: #efefef;
+    background-color: #2ecb70;
+}
+
+#list tr >td:first-child::before {
+    content: "정상";
+}
+
+#list tr.shutdown >td:first-child {
+    background-color: #e64d3f;
+}
+
+#list tr.shutdown >td:first-child::before {
+    content: "장애";
+}
+
+#list tr.critical >td:first-child {
+    background-color: #f39b13;
+}
+
+#list tr.critical >td:first-child::before {
+    content: "주의";
+}
+
+nav {
+    background-color: #fefefe;
+    padding: 1em;
+}
+
+nav th {
+    width: 200px;
+    background-color: #f9f9f9;
+}
+
+nav th,
+nav td {
+    border: 1px solid #999999;
+    padding: 0.5em;
+}
+
+details {
+    position: relative;
+    display: inline-block;
+}
+
+details[open] summary::before {
+    content: "";
+    position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+    background-color: transparent;
+}
+
+summary {
+    outline: none;
+}
+
+summary::-webkit-details-marker {
+  display: none;
+}
+
+.button {
+    font: 2em "Font Awesome 5 Free";
+    display: inline-block;
+    cursor: pointer;
+}
+
+.button:hover {
+    transform: translateY(-2px);
+}
+
+.button:active {
+    transform: none;
+}
+
+.button[open]:hover {
+    transform: none;
+}
+
+.popup {
+    position: absolute; top: 100%; left: 0;
+    border-radius: 3px;
+    border: 1px solid rgba(27,31,35,.15);
+    box-shadow: 0 1px 15px rgba(27,31,35,.15);
+    padding: 1em;
+    margin-top: 8px;
+    background-color: #ffffff;
+    color: #24292e;
+    z-index: 1;
+}
+
+.popup::after {
+    position: absolute; top: -14px; right: auto; left: 10px;
+    display: inline-block;
+    content: "";
+    border: 7px solid transparent;
+    border-bottom-color: #fff;
+}
+
+		</style>
+		<script>
+        
+function getDateString(mills) {
+    var date = new Date(mills),
+        yyyy = date.getFullYear(),
+        mm = date.getMonth() +1,
+        dd = date.getDate();
+    
+    return yyyy +"년 "+ (mm > 9? "": "0") + mm +"월"+ (dd > 9? "": "0") + dd +"일";
+}
+
+function toDateString(mills) {
+    var date = new Date(mills),
+        yyyy = date.getFullYear(),
+        mm = date.getMonth() +1,
+        dd = date.getDate();
+    
+    return `${yyyy}-${(mm > 9? "": "0") + mm}-${(dd > 9? "": "0") + dd}`;
+}
+
+function toTimeString(mills) {
+    var date = new Date(mills),
+        hh = date.getHours(),
+        mm = date.getMinutes(),
+        ss = date.getSeconds();
+    
+    return (hh > 9? "": "0") + hh +":"+ (mm > 9? "": "0") + mm +":"+ (ss > 9? "": "0") + ss;
+}
+
+function createItem(event) {
+    const
+        tr = document.createElement("tr"),
+		status = tr.appendChild(document.createElement("td"));
+    
+    tr.appendChild(document.createElement("td")).textContent = toDateString(event.timestamp);
+    tr.appendChild(document.createElement("td")).textContent = toTimeString(event.timestamp);
+    tr.appendChild(document.createElement("td")).textContent = event.ip || "";
+	tr.appendChild(document.createElement("td")).textContent = event.name || "";
+	tr.appendChild(document.createElement("td")).textContent = event.message;
+    
+    if (event.level > 0) {
+        tr.classList.add(event.level === 1? "critical": "shutdown");
+    }
+	
+	return tr;
+}
+
+function showMessage(xhr) {
+    switch (xhr.status) {
+    case 401:
+        alert("Notice!\n\n"+ "세션 만료.");
+
+        break;
+    default:
+        alert(`Error!\n\n오류코드: ${xhr.status}.`);
+    }
+
+    try {
+        console.log(JSON.parse(xhr.responseText).error);
+    } catch (e) {}
+}
+            
+        </script>
+	</head>
+	
+	<body class="loading">
+        <header>
+            <details class="button" title="날짜 선택">
+                <summary>&#xf073;</summary>
+                <form id="calendar" class="popup">
+                    <input type="date" name="date">   
+                </form>
+            </details>
+            <span id="export" class="button" title="CSV 저장">&#xf019;</span>
+            <span id="report" class="button" title="조건 검색">&#xf002;</span>
+        </header>
+        <nav>
+            <form id="search">
+                <table>
+                    <tbody>
+                        <tr>
+                            <th>조회기간</th>
+                            <td>
+                                <input type="date" name="start">
+                                ~
+                                <input type="date" name="end">
+                                <input type="submit" value="검색">
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>이름 | IP</th>
+                            <td>
+                                <input type="text" name="keyword">
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>상태</th>
+                            <td>
+                                <input type="checkbox" name="shutdown" checked>장애
+                                <input type="checkbox" name="critical" checked>임계
+                                <input type="checkbox" name="normal" checked>정상
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </form>
+        </nav>
+        <main>
+            <table>
+                <colgroup>
+                    <col width="100">
+                    <col width="100">
+                    <col width="100">
+                    <col width="160">
+                    <col width="200">
+                    <col>
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th>상태</th>
+                        <th>날짜</th>
+                        <th>시간</th>
+                        <th>주소</th>
+                        <th>이름</th>
+                        <th>메세지 (<i id="count"></i>)</th>
+                    </tr>
+                </thead>
+                <tbody id="list"></tbody>
+            </table>
+        </main>
+  		
+		<div class="bg_loading"></div>
+        
+        <script src="/js/ITAhM.js"></script>
+        <script src="/js/request.js"></script>
+		<script>
+
+const $ = {
+        list: document.getElementById("list")
+    };
+
+(function (form) {
+	const today = new Date();
+	
+	top.clearLog();
+
+	postRequest(today.setHours(0, 0, 0, 0));
+
+	// KST
+	today.setHours(9, 0, 0, 0);
+
+	form.elements["date"].valueAsDate = today;
+
+	form.elements["date"].onchange = function (e) {
+		postRequest(this.valueAsDate.setHours(0, 0, 0, 0));
+	};
+
+	function postRequest(mills) {
+		document.body.classList.add("loading");	
+
+		for(let log; log = window.list.firstChild;) {
+			window.list.removeChild(log);
+		}
+		
+		new Request().execute({
+			command: "get",
+            target: "event",
+			date: mills
+		}, function () {
+			switch (this.status) {
+			case 200:
+                document.body.querySelector("header").dataset.date = 
+                $.date = getDateString(mills);
+                $.eventData = JSON.parse(this.responseText);
+                $.indexArray = Object.keys($.eventData).sort(function (a, b) {
+                    return parseInt(a) - parseInt(b);
+                });
+
+				const
+                    df = document.createDocumentFragment(),
+                    count = $.indexArray.length;
+                
+				
+				for (let i=0, item; i<count; i++) {
+					if (item = createItem($.eventData[$.indexArray[i]])) {
+						df.appendChild(item);
+					}
+				}
+				
+				$.list.appendChild(df);
+				
+				list.scrollTop = list.scrollHeight;	
+				
+				document.getElementById("count").textContent = count;
+
+				document.body.classList.remove("loading");
+		
+				break;
+			default:
+				showMessage(this);
+			}
+		});
+	}
+}) (document.getElementById("calendar"));
+
+(function (form) {
+	const
+        today = new Date(),
+		list = document.getElementById("list");
+
+        today.setHours(9, 0, 0, 0);
+
+    form.elements["start"].valueAsDate = today;
+    form.elements["end"].valueAsDate = today;
+
+    form.onsubmit = function (e) {
+        e.preventDefault();
+        
+        document.body.classList.add("loading");	
+
+		for(let log; log = $.list.firstChild;) {
+			$.list.removeChild(log);
+		}
+
+        const
+            start = form.elements["start"].valueAsDate.setHours(0, 0, 0, 0),
+            end = form.elements["end"].valueAsDate.setHours(0, 0, 0, 0),
+            search = {
+                start: Math.min(start, end),
+                end: Math.max(start, end)
+            };
+        
+        if (form.elements["keyword"].value) {
+            search.keyword = form.elements["keyword"].value;
+        }
+
+        if (form.elements["shutdown"].checked) {
+            search.shutdown = true;
+        }
+
+        if (form.elements["critical"].checked) {
+            search.critical = true;
+        }
+
+        if (form.elements["normal"].checked) {
+            search.normal = true;
+        }
+
+        new Request().execute({
+			command: "get",
+            target: "event",
+            search: search
+		}, function () {
+			switch (this.status) {
+			case 200:
+                document.body.querySelector("header").dataset.date = "조건 검색";
+                $.eventData = JSON.parse(this.responseText);
+                $.indexArray = Object.keys($.eventData).sort(function (a, b) {
+                    return parseInt(a) - parseInt(b);
+                });
+
+				const
+                    df = document.createDocumentFragment(),
+                    count = $.indexArray.length;
+				
+				for (let i=0, item; i<count; i++) {
+					if (item = createItem($.eventData[$.indexArray[i]])) {
+						df.appendChild(item);
+					}
+				}
+				
+				$.list.appendChild(df);
+				
+				list.scrollTop = list.scrollHeight;	
+				
+				document.getElementById("count").textContent = count;
+
+				document.body.classList.remove("loading");
+		
+				break;
+			default:
+				showMessage(this);
+			}
+		});
+    };
+}) (document.getElementById("search"));
+
+document.getElementById("report").onclick = function (e) {
+    document.body.classList.toggle("search");
+};
+
+document.getElementById("export").onclick = function (e) {
+    const rows = [];
+	
+	rows[0] = "Index,Date,Time,Status,IP, Name,Message";
+
+    for (let i=0, count=$.indexArray.length, event; i<count; i++) {
+        event = $.eventData[$.indexArray[i]];
+
+        if (event.origin === "exception") {
+            continue;
+        }
+
+        rows.push([
+            event.eventID,
+            toDateString(event.timestamp),
+            toTimeString(event.timestamp),
+            event.level == 1? "임계": event.level == 2? "장애": "정상",
+            event.ip || "",
+            event.name || "",
+            event.message
+        ].join(","));
+    }
+
+    ITAhM.util.download(new Blob(["\ufeff", rows.join("\n")] ,{
+		type: "text/csv;charset=utf-8;"
+	}), $.date +".csv");
+};
+
+		</script>
+	
+	</body>
+	
+</html>

@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<meta http-equiv="Cache-Control" content="no-cache">
+		
+		<title>dialog</title>
+		
+		<style>
+@import "/css/style.css";
+@import "/css/fa.css";
+
+body {
+	position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	background-color: rgba(0, 0, 0, .8);
+}
+
+form {
+	width: 360px;
+	padding: 20px;
+	background-color: #fff;
+	position: relative;
+}
+
+h2 {
+	background-color: #0084ff;
+	padding: 10px; margin: 0;
+    color: #fff;
+    text-shadow: 0 2px 3px #000;
+}
+
+.table {
+	border: 1px solid #aaa;
+	padding: 1em;
+	margin: 1em 0;
+}
+
+.table ul {
+	list-style: none;
+	padding: 0; margin: 3px 0;
+	display: flex;
+	align-items: center;
+}
+
+.table li {
+	flex: 1;
+}
+
+.table li:first-child {
+	padding: .5em;
+	text-align: right;
+}
+
+.table li:last-child {
+	flex: 3;
+}
+
+.table li input[type="text"],
+.table li select {
+	padding: .5em;
+	width: 100%;
+	box-sizing: border-box;
+}
+
+input[type="checkbox"] {
+	margin: .5em;
+	vertical-align: middle;
+}
+
+#profile:hover {
+	cursor: default;
+	text-decoration: underline;
+}
+
+u {
+	cursor: default;
+}
+
+footer {
+	display: flex;
+}
+
+footer> input {
+	flex: 1;
+	border-radius: 1.2em;
+	background-color: #0084ff;
+	color: #fff;
+	border: .2em solid transparent;
+	padding: .5em;
+}
+
+footer> input:hover {
+	background-color: #fff;
+	color: #0084ff;
+	border-color: #0084ff;
+}
+
+#close {
+    font-family: "Font Awesome 5 Free";
+    display: block;
+    float: right;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+#close:hover {
+    transform: scale(1.2);
+}
+
+.container {
+    position: relative;
+}
+
+.bg_loading {
+    position: absolute;
+}
+
+body:not(.edit) .monitor {
+	display: none;
+}
+
+body:not(.edit) input[type=reset] {
+	display: none;
+}
+
+body.loading {
+	pointer-events: none; 
+}
+
+optgroup::before {
+    content: attr(label);
+    display: block;
+}
+
+		</style>
+		
+		<script>
+		// static function
+function isIPv4(s) {
+    return s.match(/^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/)? true: false;
+}
+
+function trimLabel(labels) {
+	var array = labels.split(","),
+		label, result = [];
+	
+	for (var i=0, _i=array.length; i<_i; i++) {
+		label = array[i].replace(/\s+/g, "");
+		
+		if (label) {
+			result[result.length] = label;
+		}
+	}
+	
+	return result.join(",");
+}
+
+function showMessage(xhr) {
+    switch (xhr.status) {
+    case 401:
+        alert("Notice!\n\n"+ "세션 만료.");
+
+        break;
+    default:
+        alert(`Error!\n\n오류코드 ${xhr.status}.`);
+    }
+
+    try {
+        console.log(JSON.parse(xhr.responseText).error);
+    } catch (e) {}
+}
+
+		</script>
+	</head>
+	
+	<body class="loading">
+	
+		<form class="rounded">
+			<h2>
+                <span  id="close" title="대화창 닫기">&#xf00d;</span>
+				장비 정보
+            </h2>
+            <div class="container">
+                <div class="table">
+                    <ul class="ip">
+                        <li>ip 주소
+                        <li>
+                            <input type="text" name="ip" autofocus>
+                    </ul>
+                    <ul>
+                        <li>이름
+                        <li>
+                            <input type="text" name="name" placeholder="장비 이름">
+                    </ul>
+                    <ul>
+                        <li>타입
+                        <li>
+                            <select name="type" required></select>
+                        
+                    </ul>
+                    <ul>
+                        <li title="콤마(,)로 구분하며 공백을 허용하지 않습니다."><i>*라벨</i>
+                        <li>
+                            <input type="text" name="label" placeholder="라벨1 [,라벨2 ...]">
+                        
+                    </ul>
+                    <ul class="monitor">
+                        <li>모니터링</li>
+                        <li>
+                            <select name="monitor" disabled>
+                                <option value="" selected>없음</option>
+                                <optgroup label="SNMP">
+                                    <option value="snmp">auto</option>
+                                </optgroup>
+                                <option value="icmp">ICMP</option>
+                                <option value="tcp">TCP</option>
+                            </select>
+                        </li>
+                    </ul>
+                    
+                    <div id="custom"></div>
+                </div>
+                
+                <footer>
+                    <input type="reset" value="삭제" disabled>
+                    <input type="submit" value="저장" disabled>
+                </footer>
+
+                <div class="bg_loading"></div>
+			</div>
+		</form>
+        <script src="/js/ITAhM.js"></script>
+        <script src="/js/request.js"></script>
+        <script src="/js/icon.js"></script>
+		<script>
+
+const $ = {
+    request: new Request()
+};
+
+function close() {
+	top.closeDialog(true);
+}
+
+document.addEventListener("keydown", function (e) {
+	switch (e.keyCode) {
+	case 27:
+		close();
+		
+		break;
+	}
+});
+
+document.getElementById("close").onclick = close;
+
+(function (form) {
+    const customInputMap = {};
+    var opener, nodeID, protocol;
+
+	if (top.account.level === 0) {
+		document.querySelector("input[type=submit]").disabled = false;
+		document.querySelector("input[type=reset]").disabled = false;
+		
+        form.elements["monitor"].disabled = false;
+	}
+
+	form.onsubmit = function (e) {
+		e.preventDefault();
+		
+		const
+            request = {
+                target: "node",
+                node: {}
+            };
+
+        if (this.elements["name"].value) {
+            request.node.name = this.elements["name"].value;
+        }
+
+        if (this.elements["ip"].value) {
+            request.node.ip = this.elements["ip"].value;
+        }
+
+        if (this.elements["type"].value) {
+            request.node.type = this.elements["type"].value;
+        }
+
+        if (this.elements["label"].value) {
+            request.node.label = trimLabel(this.elements["label"].value);
+        }
+
+		if (Object.keys(customInputMap).length > 0) {
+			request.node.custom = {};
+
+			for (var name in customInputMap) {
+				request.node.custom[name] = customInputMap[name].value;
+			}
+		}
+
+		document.body.classList.add("loading");
+
+        if (nodeID) {
+            request.command = "set";
+            request.id = nodeID;
+        }
+        else {
+            request.command = "add";
+        }
+
+		$.request.execute(request, function () {
+			switch (this.status) {
+			case 200:
+                opener.location.reload();
+
+                if (request.command == "add") {
+                    nodeID = JSON.parse(this.responseText).id;
+
+                    document.body.classList.add("edit");
+                    
+                    form.elements["ip"].disabled = true;
+                }
+
+                opener.location.reload();
+                
+                document.body.classList.remove("loading");
+
+				break;
+			case 409:
+				alert("Error!\n\n이미 사용중인 IP 주소 입니다.");
+
+				form.elements["ip"].select();
+
+                document.body.classList.remove("loading");
+
+				break;
+			default:
+                showMessage(this);
+			}
+		});
+	};
+
+	form.onreset = function (e) {
+		e.preventDefault();
+
+		if (!confirm("Warning!\n\n노드를 삭제하겠습니까?")) {
+			return;
+		}
+
+		document.body.classList.add("loading");
+		
+		$.request.execute({
+			command: "remove",
+			target: "node",
+			id: nodeID
+		}, function () {
+			switch (this.status) {
+				case 200:
+					opener.location.reload();
+
+                    close();
+
+					break;
+                case 409:
+
+				default:
+                    showMessage(this);
+			}
+		});
+	};
+
+	form.elements["monitor"].onchange = function (e) {
+		if (!confirm("Confirm.\n\n모니터 방식을 변경하겠습니까?")) {
+			this.value = protocol;
+
+			return;
+		}
+		
+		document.body.classList.add("loading");
+
+        const request = {
+            command: "set",
+            target: "monitor",
+            id: nodeID,
+            ip: form.elements["ip"].value
+        };
+
+        if (this.value) {
+            request.protocol = this.value;
+        }
+
+        this.disabled = true;
+
+		$.request.execute(request, function () {
+			switch (this.status) {
+				case 200:
+                    alert("Notice.\n\n모니터 요청 정상.");
+
+                    document.body.classList.remove("loading");
+					
+                    break;
+				default:
+                    showMessage(this);
+			}
+		});
+	};
+
+	form.elements["monitor"].onclick = function () {
+		protocol = this.value;
+	};
+
+    // public
+    window.initialize = function(id) {
+        opener = this;
+        nodeID = id;
+
+        $.request.execute({
+                command: "get",
+                target: "setting",
+                key: "custom"
+            }, function () {
+            switch(this.status) {
+            case 200:
+                const settingData = JSON.parse(this.responseText);
+
+                if ("custom" in settingData) {
+                    initCustom(settingData.custom.split(','));
+                }
+            case 204:
+                initProfile();
+                
+                break;
+            default:
+                showMessage(this);
+            }
+        });
+    };
+
+    function initProfile() {
+        $.request.execute({
+            command: "get",
+            target: "profile"
+        }, function () {
+            switch(this.status) {
+            case 200:
+                const
+                    df = document.createDocumentFragment(),
+                    profileData = JSON.parse(this.responseText);
+
+                for (let name in profileData) {
+                    df.appendChild(document.createElement("option")).text = name;
+                }
+
+                document.querySelector("optgroup").appendChild(df);
+
+                buildType();
+
+                break;
+            default:
+                showMessage(this);
+            }
+        });
+    }
+
+    function buildType() {
+        $.request.execute({
+            command: "get",
+            target: "icon"
+        }, function () {
+            switch (this.status) {
+            case 200:
+                const
+                    iconData = ITAhM.iconData,
+                    customData = JSON.parse(this.responseText),
+                    df = document.createDocumentFragment(),
+                    group = {};
+                let 
+                    groupName, optgroup, icon, type;
+	
+                for (let type in customData) {
+                    iconData[type] = customData[type];
+                }
+
+                for (let type in iconData) {
+                    icon = iconData[type];
+
+                    groupName = icon.group;
+
+                    if (groupName === "group") {
+                        continue;
+                    }
+
+                    optgroup = group[groupName];
+                    
+                    if (!optgroup) {
+                        optgroup = document.createElement("optgroup");
+                        optgroup.label = groupName;
+                        
+                        group[groupName] = optgroup;
+                        
+                        df.appendChild(optgroup);
+                    }
+
+                    optgroup.appendChild(document.createElement("option")).text = type;
+                }
+
+                form.elements["type"].appendChild(df);
+                form.elements["type"].selectedIndex = -1;
+
+                initDialog();
+
+                break;
+
+            default:
+                showMessage(this);
+            };
+        });
+    }
+
+    function initDialog() {
+		if (nodeID) {
+            $.request.execute({
+                command: "get",
+                target: "node",
+                id: nodeID
+            }, function () {
+				switch (this.status) {
+				case 200:
+					window.node = JSON.parse(this.responseText);
+
+					if (!node.type) {
+						node.type = "unknown";
+					}
+					
+                    if (node.ip) {
+                        form.elements["ip"].disabled = true;
+                        form.elements["ip"].value = node.ip;
+                    } else {
+                        form.elements["monitor"].disabled = true;
+                    }
+                    
+					form.elements["name"].value = node.name || "";
+					form.elements["type"].value = node.type;
+					// 저장할때는 trim으로 다 붙여서 넣지만 보여줄때는 보기 좋게 한칸씩 뗀다.
+					form.elements["label"].value = node.label && (node.label.split(",")).join(", ") || "";
+			
+					if ("extra" in node) {
+						for (let name in customInputMap) {
+							customInputMap[name].value = node.extra[name] || "";
+						}
+					}
+
+                    form.elements["monitor"].value = node.protocol || "";
+					
+					document.body.classList.add("edit");
+
+					break;
+
+				default:
+                    showMessage(this);
+				}
+
+				document.body.classList.remove("loading");
+			});
+		}
+		else {
+			form.elements["type"].value = "unknown";
+
+			document.body.classList.remove("loading");
+		}
+	};
+
+    function initCustom(customs) {
+        const df = document.createDocumentFragment();
+        var
+            ul,
+            input;
+        
+        customs.forEach(name => {
+            ul = df.appendChild(document.createElement("ul"));
+            ul.appendChild(document.createElement("li")).textContent = name;
+            
+            input = document.createElement("input");
+            input.type = "text";
+            
+            customInputMap[name] = input;
+            
+            ul.appendChild(document.createElement("li")).appendChild(input);    
+        });
+        
+        document.getElementById("custom").appendChild(df);
+    }
+}) (document.querySelector("form"));
+	</script>
+	
+	</body>
+	
+</html>

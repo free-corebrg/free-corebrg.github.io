@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<meta http-equiv="Cache-Control" content="No-Cache">
+		
+		<title>CeMS Dashboard</title>
+
+		<style>
+
+@import "/css/style.css";
+@import "/css/fa.css";
+
+body {
+    position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+    padding: 0; margin: 0;
+    display: flex; flex-direction: column;
+    background-color: #424242;
+}
+
+header {
+    position: absolute; top: 0; right: 0; left: 0; height: 300px;
+    display: flex; justify-content: space-between;
+    pointer-events: none;
+}
+
+nav {
+    flex: 1;
+}
+
+main {
+    flex: none;
+    display: flex;
+    overflow-x: auto;
+    color: #fff;
+    padding: 1em;
+}
+
+section {
+    flex: 1;
+    height: 100%;
+    position: relative;
+}
+
+section.empty {
+    flex: none;
+}
+
+.container {
+    position: relative;
+    height: 100%;
+    padding: 3em; box-sizing: border-box;
+    width: 300px;
+}
+
+.container.chart,
+.container.label {
+    overflow: hidden;
+    background-color: rgba(66, 66, 66, 0.6);
+}
+
+.container .title {
+    display: flex;
+    margin-bottom: 1em;
+}
+
+.container .title >span {
+    flex: 1;
+    text-align: center;
+    padding: 0.5em;
+    border-radius: 10px 10px 0 0;
+	box-shadow: 0 0 5px #fff inset;
+}
+
+.container .title >span:nth-child(1) {
+    background-color: #ff0000;
+    color: #ffffff;
+    text-shadow: 0 1px 1px #777777;
+}
+
+.container .title >span:nth-child(2) {
+    background-color: #ffa500;
+    color: #ffffff;
+    text-shadow: 0 1px 1px #777777;
+}
+
+.container .title >span:nth-child(3) {
+    background-color: #00ff00;
+    color: #ffffff;
+    text-shadow: 0 1px 1px #777777;
+}
+
+.container .summary {
+    display: flex; justify-content: space-around;
+}
+
+canvas {
+    transform: translateX(-25%);
+}
+
+iframe {
+    width: 100%; height: 100%;
+    border: none;
+}
+
+canvas {
+    height: 100%;
+}
+
+.list:not(:empty)::before {
+	content: attr(title);
+	display: block;
+	padding: .5em 2em; margin: 0.5em 0;
+	border-radius: 0.5em 0.5em 0 0;
+	font-weight: bold;
+    background-color: #000000;
+	text-shadow: 1px 1px 1px #777;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+ul {
+	list-style: none;
+	padding: 0; margin: 0;
+	font-size: 12px;
+	display: flex;
+	/*border-bottom: 1px solid #777;*/
+	cursor: pointer;
+    padding: 1px;
+}
+
+li {
+	flex: 1;
+	box-sizing: border-box;
+	overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    display: flex; align-items: center;
+    transition: 0.5s linear;
+}
+
+li:last-of-type {
+    height: 2em;
+    background: linear-gradient(to right, rgb(0, 137, 123) 70%, rgb(246, 191, 38) 70% 90%, rgb(142, 36, 170) 90%);
+    position: relative;
+    color: #efefef;
+}
+
+li:last-of-type::after {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    content: attr(data-value);
+    font-weight: bolder;
+}
+
+li:last-of-type >div {
+    background-color: #424242;
+    position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+    animation: gauge 2s cubic-bezier(0, 1, 1, 1.2);
+}
+
+nav {
+    display: flex;
+}
+
+nav >div {
+    flex: 1;
+    position: relative;
+}
+
+nav >div:empty {
+    display: none;
+}
+
+nav >div:not(:empty)::before {
+    content: "\f2d2";
+    font: 20px "Font Awesome 5 Free";
+    position: absolute; top: 0; right: 0;
+    border-radius: 50%;
+    display: flex; width: 32px; height: 32px;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 132, 255, 0.5);
+    border-color: #0084ff;
+    color: #ffffff;
+    cursor: pointer;
+}
+
+nav >div::before:hover {
+    background-color: #0084ff;
+}
+
+/* bounce >> */
+.bounce {
+	position: relative;
+	width: 60px;
+	height: 120px;
+	color: #fff;
+	font-weight: bold;
+}
+
+.ball {
+	border-radius: 50%;
+	box-shadow: inset 0 -5px 15px rgba(255,255,255,0.4), inset -2px -1px 40px rgba(0,0,0,0.4), 0 0 1px #000;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+
+.bounce >.ball {
+	position: absolute; top: 0; left: 0;
+	width: 100%;
+	height: 50%;
+	animation: bounce 10s infinite;
+}
+
+.green.ball {
+	background-color: #0f0;
+}
+
+.orange.ball {
+	background-color: #ffa500;
+}
+
+.bounce >.orange.ball {
+	animation-delay: .5s;
+}
+
+.red.ball {
+	background: #f00;
+}
+
+.bounce >.red.ball {
+	animation-delay: 1s;
+}
+
+.ball:before {
+	content: "";
+	position: absolute;
+	width: 50%;
+	height: 25%;
+	border-radius: 50%;
+	left: 25%;
+	top: 5%;
+	background: linear-gradient(to bottom, rgba(232,232,232,1), rgba(255,255,255,0));
+}
+
+.bounce div:last-child {
+	position: absolute; bottom: 0;
+	width: 100%;
+	height: 20%;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+
+.bounce div:last-child::after {
+	content: "";
+	width: 100%;
+	height: 80%;
+	border-radius: 50%;
+	background: rgba(100, 100, 100, 0.5);
+	animation: shadow 1s;
+	z-index: -1;
+}
+
+@keyframes bounce {
+	0% {
+		top: 0;
+		animation-timing-function: ease-in;
+	}
+	4% {
+		top: 40%;
+		height: 50%;
+		animation-timing-function: ease-out;
+	}
+	5% {
+		top: 45%;
+		height: 45%;
+		animation-timing-function: ease-in;
+	}
+	6% {
+		top: 30%;
+		height: 50%;
+		animation-timing-function: ease-out;
+	}
+	10% {
+		top: 0;
+		animation-timing-function: ease-in;
+	}
+}
+
+@keyframes shadow {
+	0% {
+		background: rgba(20, 20, 20, .1);
+		animation-timing-function: ease-in;
+	}
+	50% {
+		background: rgba(20, 20, 20, .3);
+		height: 40%;
+		width: 80%;
+		animation-timing-function: ease-out;
+	}
+	100% {
+		background: rgba(20, 20, 20, .1);
+		animation-timing-function: ease-in;
+	}
+}
+
+/* << bounce */
+
+.list:empty,
+body:not(.name) li:nth-child(1),
+body.name li:nth-child(2) {
+    display: none;
+}
+
+@keyframes gauge {
+    30% {
+		left: 0;
+	}
+}
+
+		</style>
+		
+		<script>
+
+function onEvent () {
+    $.request.execute({
+        command: "get",
+        target: "node"
+	}, function () {
+		switch (this.status) {
+        case 200:
+            $.nodeData = JSON.parse(this.responseText);
+            
+            update();
+
+            break;
+        default:
+            showMessage(this);
+		}
+    });	
+}
+
+function update() {
+    const count = {
+            shutdown: 0,
+            critical: 0,
+            normal: 0
+        };
+
+    var node;
+
+    $.labelMap = {};
+    
+    for (let id in $.nodeData) {
+        node = $.nodeData[id];
+
+        if ("protocol" in node) {
+            if ("status" in node && !node.status) {
+                count.shutdown++;
+
+                parseLabel(node.label, "shutdown");
+            }
+            else if ("critical" in node && node.critical) {
+                count.critical++;
+                
+                parseLabel(node.label, "critical");
+            }
+            else {
+                count.normal++;
+
+                parseLabel(node.label, "normal");
+            }
+        }
+    }
+
+    document.getElementById("normal").textContent = count.normal;
+    document.getElementById("critical").textContent = count.critical;
+    document.getElementById("shutdown").textContent = count.shutdown;
+
+    updateChart(count.normal, count.critical, count.shutdown, -Math.max(count.normal, count.critical, count.shutdown));
+}
+
+function parseLabel (label, status) {
+    if (label) {
+        label.split(",").forEach(function (label) {
+            if (!(label in $.labelMap)) {
+                $.labelMap[label] = {
+                    shutdown: 0,
+                    critical: 0,
+                    normal: 0
+                }
+            }
+
+            $.labelMap[label][status]++;
+        });
+    }
+}
+
+function onRestore(type) {
+    const container = document.getElementById(type);
+
+    if (container) {
+        const frame = container.querySelector("iframe") || container.appendChild(document.createElement("iframe"));
+
+        frame.src = `/${type}.html`;
+    }
+}
+
+function showMessage(xhr) {
+    switch (xhr.status) {
+    case 401:
+        alert("Notice!\n\n"+ "세션 만료.");
+
+        break;
+    default:
+        alert(`Error!\n\n오류코드 ${xhr.status}.`);
+    }
+
+    try {
+        console.log(JSON.parse(xhr.responseText).error);
+    } catch (e) {}
+}
+
+		</script>
+	</head>
+
+	<body class="name loading">
+        <nav>
+            <div id="dc" title="새창 열기"><iframe src="/dc.html"></iframe></div>
+            <div id="topology" title="새창 열기"><iframe src="/topology.html"></iframe></div>
+            <div id="branch" title="새창 열기"><iframe src="/branch.html"></iframe></div>
+            <div></div>
+        </nav>
+        <header>
+            <div class="container chart">
+                <canvas id="chart"></canvas>
+            </div>
+            <div class="container summary">
+                <div class="title">
+                    <span data-color="#00ff00">장애</span>
+                    <span>임계</span>
+                    <span>정상</span>
+                </div>
+                <div class="summary">
+                    <div class="bounce">
+                        <div id="shutdown" class="ball red"></div>
+                        <div></div>
+                    </div>
+                    <div class="bounce">
+                        <div id="critical"  class="ball orange"></div>
+                        <div></div>
+                    </div>
+                    <div class="bounce">
+                        <div id="normal"  class="ball green"></div>
+                        <div></div>
+                    </div>
+                </div>
+            </div>
+            <div class="container label">
+                <canvas id="label"></canvas>
+            </div>
+        </header>
+        <main>
+            <section id="responseTime" data-func="toMillsString" data-chart="/chart/responseTime.html">
+                <div class="list" title="응답시간"></div>
+            </section>
+            <section id="hrProcessorLoad" data-func="toPercentageString" data-chart="/chart/processor.html">
+                <div class="list" title="프로세서 로드"></div>
+            </section>
+            <section id="hrStorageMemory" data-func="toBytesString" data-chart="/chart/memory.html">
+                <div class="list" title="메모리 사용량"></div>
+            </section>
+            <section id="hrStorageMemory_rate" data-func="toBytesString" data-chart="/chart/memory.html">
+                <div class="list" title="메모리 사용율(%)"></div>
+            </section>
+            <section id="hrStorageUsed" data-func="toBytesString" data-chart="/chart/storage.html">
+                <div class="list" title="저장공간 사용량"></div>
+            </section>
+            <section id="hrStorageUsed_rate" data-func="toBytesString" data-chart="/chart/storage.html">
+                <div class="list" title="저장공간 사용율(%)"></div>
+            </section>
+            <section id="ifInOCtets" data-func="toBPSString" data-chart="/chart/throughput.html">
+                <div class="list" title="수신 사용량"></div>
+            </section>
+            <section id="ifInOCtets_rate" data-func="toBPSString" data-chart="/chart/throughput.html">
+                <div class="list" title="수신 사용율(%)"></div>
+            </section>
+            <section id="ifOutOCtets" data-func="toBPSString" data-chart="/chart/throughput.html">
+                <div class="list" title="송신 사용량"></div>
+            </section>
+            <section id="ifOutOCtets_rate" data-func="toBPSString" data-chart="/chart/throughput.html">
+                <div class="list" title="송신 사용율(%)"></div>
+            </section>
+            <section id="ifInErrors" data-func="toErrorString" data-chart="/chart/error.html" data-zero="true">
+                <div class="list" title="수신 오류"></div>
+            </section>
+            <section id="ifoutErrors" data-func="toErrorString" data-chart="/chart/error.html" data-zero="true">
+                <div class="list" title="송신 오류"></div>
+            </section>
+        </main>
+        <div class="bg_loading"></div>
+
+        <script>
+if (!opener) {
+    throw window.location.replace("/warning.html");
+}
+
+window.account = opener.account;
+        </script>
+        <script src="/js/request.js"></script>
+        <script src="/js/import/chart.js"></script>
+        <script src="/js/import/chartPluginLabels.js"></script>
+        <script src="/dashboard/dashboard.js"></script>
+		<script>
+
+const $ = {
+        request: new Request(),
+        labelMap: {}
+    };
+
+document.getElementById("dc").onclick = 
+document.getElementById("topology").onclick = 
+document.getElementById("branch").onclick = function (e) {
+    const frame = this.querySelector("iframe");
+
+    this.removeChild(frame);
+
+    window.open(frame.src, "_blank",
+        `left=${window.innerWidth /4},top=${window.innerHeight /4},width=${window.innerWidth /2},height=${window.innerHeight /2}`);
+}
+
+function initialize() {
+    update();
+
+    document.body.classList.remove("loading");
+
+    getTop();
+
+    $.request.listen(onEvent);
+}
+
+$.request.execute({
+    command: "get",
+    target: "node"
+}, function () {
+    switch (this.status) {
+    case 200:
+        $.nodeData = JSON.parse(this.responseText);
+        
+        initialize();
+
+        break;
+    default:
+        showMessage(this);
+    }
+});
+
+		</script>
+	
+	</body>
+</html>

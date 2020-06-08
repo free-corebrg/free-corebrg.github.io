@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<meta http-equiv="Cache-Control" content="no-cache">
+		
+		<title>dialog</title>
+		
+		<style>
+@import "/css/style.css";
+@import "/css/fa.css";
+
+body {
+	position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	background-color: rgba(0, 0, 0, .8);
+}
+
+main {
+	width: 300px;
+	padding: 20px;
+	background-color: #fff;
+	position: relative;
+}
+
+h2 {
+	background-color: #0084ff;
+	padding: 10px; margin: 0;
+    color: #fff;
+    text-shadow: 0 2px 3px #000;
+}
+
+form {
+    position: relative;
+}
+
+.table {
+	border: 1px solid #aaa;
+	padding: 1em;
+	margin: 1em 0;
+}
+
+.table ul {
+	list-style: none;
+	padding: 0; margin: 3px 0;
+	display: flex;
+	align-items: center;
+}
+
+.table li {
+	flex: 1;
+}
+
+.table li:first-child {
+	padding: .5em;
+	text-align: right;
+}
+
+.table li:last-child {
+	flex: 3;
+}
+
+.table li input[type="text"],
+.table li input[type="number"] {
+	padding: .5em;
+	width: 100%;
+	box-sizing: border-box;
+}
+
+.table li input[type="number"] {
+    text-align: right;
+}
+
+footer {
+	display: flex;
+}
+
+footer> input {
+    font-family: "Font Awesome 5 Free";
+    font-weight: bold;
+	flex: 1;
+	padding: .5em;
+}
+
+
+#close {
+    font-family: "Font Awesome 5 Free";
+    display: block;
+    float: right;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+#close:hover {
+    transform: scale(1.2);
+}
+
+.bg_loading {
+    position: absolute;
+}
+
+body:not(.edit) input[type=reset] {
+	display: none;
+}
+
+		</style>
+		
+		<script>
+
+function initRack() {
+    const form = document.querySelector("form");
+
+    form.elements["name"].value = $.rack.name;
+    form.elements["unit"].value = $.rack.unit;
+}
+
+function showMessage(xhr) {
+    switch (xhr.status) {
+    case 401:
+        alert("Notice!\n\n"+ "세션 만료.");
+
+        break;
+    default:
+        alert(`Error!\n\n오류코드 ${xhr.status}.`);
+    }
+
+    try {
+        console.log(JSON.parse(xhr.responseText).error);
+    } catch (e) {}
+}
+
+		</script>
+	</head>
+	
+	<body class="loading">
+	
+		<main>
+			<h2>
+                <span  id="close" title="대화창 닫기">&#xf00d;</span>
+				Rack 정보
+            </h2>
+            <form>
+                <div class="table">
+                    <ul>
+                        <li>이름
+                        <li>
+                            <input type="text" name="name" required>
+                        </li>
+                    </ul>
+                    <ul>
+                        <li>높이 (Unit)
+                        <li>
+                            <input type="number" name="unit" value="42" required>
+                        </li>
+                    </ul>
+                </div>
+                
+                <footer>
+                    <input type="reset" value="&#xf1f8; 삭제" disabled>
+                    <input type="submit" value="&#xf0c7; 저장" disabled>
+                </footer>
+
+                <div class="bg_loading"></div>
+			</form>
+		</main>
+        
+        <script src="/js/request.js"></script>
+		<script>
+
+const
+    search = new URLSearchParams(window.location.search),
+    $ = {
+        id: Number(search.get("rack")) || undefined,
+        request: new Request()
+    };
+
+if (top.account.level == 0) {
+    document.querySelector("input[type=submit]").disabled = false;
+    document.querySelector("input[type=reset]").disabled = false;
+}
+
+document.addEventListener("keydown", function (e) {
+	switch (e.keyCode) {
+	case 27:
+        top.closeDialog();
+		
+		break;
+	}
+});
+
+document.getElementById("close").onclick = e => top.closeDialog();
+
+document.querySelector("form").onreset = function (e) {
+    e.preventDefault();
+
+    if (!(confirm("Warning!\n\nRack에 거치된 장치 정보가 함께 삭제됩니다.\n계속 하겠습니까?"))) {
+        return;
+    }
+
+    document.body.classList.add("loading");
+
+    $.request.execute({
+        command: "remove",
+        target: "rack",
+        id: $.id
+    }, function () {
+        switch(this.status) {
+        case 200:
+            top.closeDialog(true);
+
+            break;
+        default:
+            showMessage(this);
+        }
+    });
+};
+
+document.querySelector("form").onsubmit = function (e) {
+    e.preventDefault();
+
+    document.body.classList.add("loading");
+
+    
+    const request = {
+            target: "rack",
+            rack: {
+                name: this.elements["name"].value,
+                unit: Number(this.elements["unit"].value),
+            }
+        };
+
+    if ($.id) {
+        request.command = "set";
+        request.id = $.id;
+        request.rack.x = $.rack.x;
+        request.rack.y = $.rack.y;
+    } else {
+        request.command = "add";
+    }
+
+    $.request.execute(request, function () {
+        switch(this.status) {
+        case 200:
+            top.closeDialog(true);
+
+            break;
+        default:
+            showMessage(this);
+        }
+    });
+};
+
+
+if ($.id) {
+    document.body.classList.add("edit");
+
+    $.request.execute({
+        command: "get",
+        target: "rack",
+        id: Number($.id)
+    }, function () {
+        switch (this.status) {
+        case 200:
+            $.rack = JSON.parse(this.responseText);
+
+            initRack();
+            
+            document.body.classList.remove("loading");
+
+            break;
+
+        default:
+            showMessage(this);
+        }
+    });
+} else {
+    document.body.classList.remove("loading");
+}
+
+	</script>
+	
+	</body>
+	
+</html>

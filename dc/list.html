@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		
+		<title>List @ ITAhM</title>
+		
+		<style>
+@import "/css/itahm.css";
+@import "/css/fa.css";
+
+body {
+	position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+    margin: 0; padding: 1em;
+    user-select: none;
+}
+
+article {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+}
+
+aside {
+	margin-bottom: 1em;
+	display: flex;
+	justify-content: space-between;
+    white-space: nowrap;
+}
+
+#list {
+	flex: 1;
+	background-color: #fff;
+	overflow-y: auto;
+}
+
+header {
+	background-color: #000;
+	color: #fff;
+	font-weight: bold; text-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
+	border-bottom: 4px solid #92a7af;
+	border-radius: 3px 3px 0 0;
+	padding: 0.5em 0;
+	text-shadow: 1px 1px 1px #00f;
+}
+
+#header >li {
+	position: relative;
+	display: flex; align-items: center; justify-content: center;
+}
+
+#header >li:nth-child(1) {
+	position: relative;
+}
+
+#sort::after {
+	content: "▲";
+	cursor: pointer;
+	position: absolute; right: 3px;
+}
+
+#sort.reverse::after {
+	content: "▼";
+}
+
+#header >li:not(:last-child) {
+	border-right-color: #ddd;
+}
+
+aside input,
+aside select {
+	padding: .5em;
+}
+
+form >input{
+    font-family: "Font Awesome 5 Free";
+}
+
+form input[type="text"] {
+	flex: 1;
+	min-width: 0;
+}
+
+nav {
+	display: flex;
+	align-items: center;
+}
+
+nav> div {
+	margin-right: 5px;
+}
+
+ul {
+	margin: 0; padding: 0;
+	list-style: none;
+	display: flex;
+}
+
+li {
+	border: 1px solid transparent;
+	padding: 0.5em;
+	flex: 1;
+	box-sizing: border-box;
+}
+
+li:nth-child(1) {
+    flex: none; width: 3em;
+    text-align: center;
+}
+
+li:nth-child(2) {
+    flex: none; width: 160px;
+}
+
+#list li {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+#list> ul {
+	border-bottom: 1px solid #c1c3d1;
+    color: #373d3f;
+    padding: 3px;
+}
+
+#list> ul:nth-child(odd) {
+	background-color: #ebebeb;
+}
+
+#list> ul.location {
+    pointer-events: none;
+}
+
+#list> ul.location >li:nth-child(1)::before {
+    font-family: "Font Awesome 5 Free";
+    font-weight: bold;
+    color: #00ff00;
+    content: "\f00c";
+    pointer-events: all;
+    cursor: pointer;
+    display: inline-block;
+}
+
+#list> ul.location >li:nth-child(1):hover::before {
+    content: "\f1f8";
+    color: #777777;
+    transform: scale(1.5);
+}
+
+#list >ul.hidden,
+body.keyword #list> ul:not(.keyword) {
+	display: none;
+}
+
+		</style>
+		
+		<script>
+// static function
+const REGEXP_IPV4 = new RegExp("^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\."
+	+ "(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\."
+	+ "(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\."
+	+ "(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$");
+
+function IP2Int(s) {
+	const o = REGEXP_IPV4.exec(s);
+	
+	if(o === null || o.length != 5) return 0xffffffff;
+	
+	var n = 0;
+	for(let i=1; i<5; i++) {
+		n <<= 8;
+		n |= o[i];
+	}
+	
+	return n >>> 0;
+}
+		</script>
+		
+		<script>
+
+function onShowStatus() {
+	window.sessionStorage.setItem("node_id", window.selectedID);
+
+    window.location.href = "/resource.html";
+}
+
+function initialize() {
+	const df = document.createDocumentFragment();
+    let row;
+    
+    for (let id in $.nodeData) {
+        row = createRow(id, $.nodeData[id]);
+
+        if (row) {
+            df.appendChild(row);
+        }
+    }
+	
+	$.list.appendChild(df);
+	
+	document.body.classList.remove("loading");
+
+    {
+        const
+            e = document.getElementById("label"),
+            df = document.createDocumentFragment();
+        
+        for (var label in $.labelMap) {
+            df.appendChild(document.createElement("option")).text = label;
+        }
+        
+        e.insertBefore(df, e.firstChild);
+    }
+}
+
+/**
+ * @param {string} id
+ **/
+function createRow(id, node) {
+	var
+		row = document.createElement("ul"),
+		labels, label;
+	
+    if ("type" in node && $.iconData[node.type].group === "group") {
+        return;
+    }
+
+    row.appendChild(document.createElement("li")); // N.0
+	row.appendChild(document.createElement("li")).textContent = node.ip || ""; // N.1
+	row.appendChild(document.createElement("li")).textContent = node.name; // N.2
+
+	row.dataset.id = id;
+	
+	if (node.label) {
+		labels = node.label.split(",");
+		
+		for (var i=0, length=labels.length; i<length; i++) {
+			label = labels[i];
+			
+			if (!(label in $.labelMap)) {
+				$.labelMap[label] = [];
+			}
+
+			$.labelMap[label].push(row);
+		}
+	}
+	else {
+		$.labelMap[""].push(row);
+	}
+    
+    if (node.location) {
+        row.classList.add("location");
+
+        row.onclick = e => 
+            confirm("Confirm.\n\n장치를 Rack에서 분리하겠습니까?") && detachDevice(id);
+    } else {
+        row.draggable = true;
+
+        row.addEventListener("dragstart", e => {
+            e.dataTransfer.effectAllowed = "copy";
+
+            e.dataTransfer.setData("text", id);
+        });
+    }
+
+	return row;
+}
+
+/**
+ * @param {string} id
+ **/
+function detachDevice(id) {
+    document.body.classList.add("loading");
+
+    $.request.execute({
+        command: "remove",
+        target: "location",
+        node: id
+    }, function () {
+        switch(this.status) {
+        case 200:
+            window.location.reload();
+
+            break;
+        default:
+            showMessage(this);
+        }
+    });
+}
+
+function showMessage(xhr) {
+    switch (xhr.status) {
+    case 401:
+        alert("Notice!\n\n"+ "세션 만료.");
+
+        break;
+    default:
+        alert(`Error!\n\n오류코드 ${xhr.status}.`);
+    }
+
+    try {
+        console.log(JSON.parse(xhr.responseText).error);
+    } catch (e) {}
+}
+
+		</script>
+		
+	</head>
+	
+	<body class="loading">
+		<article>
+			<aside>
+				<nav>
+					<div>
+						<select id="label">
+							<optgroup>
+								<option value="">미분류
+							</optgroup>
+							<optgroup>
+								<option selected>모두 보기
+							</optgroup>
+						</select>
+					</div>
+				</nav>
+				<form>
+                    <input type="text" name="keyword" placeholder="IP, Type, Name">
+                    <input type="submit" value="&#xf002; 찾기">
+                    <input type="reset" value="&#xf0e2; 초기화">
+				</form>
+			</aside>
+			
+			<header>
+				<ul id="header">
+                    <li></li>
+					<li id="sort">IP</li>
+					<li>Name</li>
+				</ul>
+			</header>
+			
+			<div id="list"></div>
+		</article>
+		
+		<div class="bg_loading"></div>
+		
+        <script src="/js/ITAhM.js"></script>
+        <script src="/js/icon.js"></script>
+		<script src="/js/object.js"></script>
+		<script src="/js/request.js"></script>
+		<script>
+
+const $ = {
+        request: new Request(),
+        iconData: ITAhM.iconData,
+        labelMap: {
+		"": []
+	    },
+        list: document.getElementById("list")
+    };
+        
+document.getElementById("label").onchange = function () {
+	const
+		df = document.createDocumentFragment(),
+		label = this.value;
+	
+	document.body.classList.add("loading");
+	
+	if (this.selectedIndex === this.options.length -1) {
+		for (let row; row = $.list.firstElementChild;) {
+			df.appendChild(row).classList.remove("hidden");
+		}
+	}
+	else {
+		for (let row; row = $.list.firstElementChild;) {
+			df.appendChild(row).classList[$.labelMap[label].indexOf(row) == -1? "add": "remove"]("hidden");
+		}
+	}
+	
+	$.list.appendChild(df);
+
+	document.body.classList.remove("loading");
+};
+
+document.getElementById("sort").onclick = function (e) {
+	const
+		reverse = this.classList.toggle("reverse"),
+		df = document.createDocumentFragment();
+
+	[].slice.call($.list.children).sort(reverse?
+		function (a, b) {
+			const
+				ipA = a.children[1].textContent,
+				ipB = b.children[1].textContent;
+            
+			if (ipA && ipB) {
+				return IP2Int(ipB) - IP2Int(ipA);
+			}
+			else if (ipB) {
+				return 1;
+			}
+			else if (ipA) {
+				return -1;
+			}
+			else {
+				return 0;
+			}
+		}:
+		function (a, b) {
+			const
+				ipA = a.children[1].textContent,
+				ipB = b.children[1].textContent;
+			
+			if (ipA && ipB) {
+				return IP2Int(ipA) - IP2Int(ipB);
+			}
+			else if (ipB) {
+				return 1;
+			}
+			else if (ipA) {
+				return -1;
+			}
+			else {
+				return 0;
+			}
+		}).forEach(function (e) {
+			df.appendChild(e);
+		});
+
+	$.list.appendChild(df);
+};
+
+(function (form) {
+	form.onsubmit = function (e) {
+		e.preventDefault();
+		
+		document.body.classList.add("loading", "keyword");
+
+		const keyword = form.elements["keyword"].value;
+
+		if (!keyword) {
+			resetKeyWord();
+
+			return;
+		}
+
+		const df = document.createDocumentFragment();
+		
+		for (let row, cols; row = $.list.firstElementChild;) {
+			cols = row.children;
+
+			df.appendChild(row);
+
+			for (var i=0, length=cols.length; i<length; i++) {
+				row.classList.remove("keyword");
+
+				if (cols[i].textContent.indexOf(keyword) !== -1) {
+					row.classList.add("keyword");
+					
+					break;
+				}
+			}
+		}
+		
+		$.list.appendChild(df);
+
+		document.body.classList.remove("loading");
+	};
+
+	form.onreset =  resetKeyWord;
+
+	function resetKeyWord() {
+		const df = document.createDocumentFragment();
+
+		document.body.classList.add("loading");
+		
+		for (let row; row = $.list.firstElementChild;) {
+			df.appendChild(row).classList.remove("keyword");
+		}
+
+		document.body.classList.remove("keyword");
+
+		$.list.appendChild(df);
+
+		document.body.classList.remove("loading");
+	}
+
+}) (document.querySelector("form"));
+
+function initIcon(e) {
+    switch(this.status) {
+    case 200:
+        const iconData = JSON.parse(this.responseText);
+
+        for (let type in iconData) {
+            $.iconData[type] = iconData[type];
+        }
+        
+        initialize();
+        
+        break;
+    default:
+        showMessage(this);
+    }
+}
+
+function initNode(e) {
+    switch(this.status) {
+    case 200:
+        $.nodeData = JSON.parse(this.responseText);
+        
+        $.request.execute({
+            "command": "get",
+            "target": "icon"
+        }, initIcon);
+
+        break;
+    default:
+        showMessage(this);
+    }
+}
+
+$.request.execute({
+    "command": "get",
+    "target": "node",
+    "filter": "node"
+}, initNode);
+
+        </script>
+	
+	</body>
+	
+</html>

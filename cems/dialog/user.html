@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>dialog</title>
+		
+		<style>
+
+@import "/css/style.css";
+@import "/css/fa.css";
+
+body {
+	margin: 0; padding: 0;
+	position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	background-color: rgba(0, 0, 0, .8);
+}
+
+form {
+	width: 300px;
+	padding: 20px;
+	background-color: #fff;
+	position: relative;
+}
+
+h2 {
+	margin: 0; padding: 10px;
+	background-color: #0084ff;
+    color: #fff;
+    text-shadow: 0 2px 3px #000;
+}
+
+input.text,
+input[type="submit"],
+input[type="reset"],
+select {
+	width: 100%;
+	box-sizing: border-box;
+	padding: .5em;
+}
+
+input[type="checkbox"] {
+	vertical-align: middle;
+}
+
+div.table {
+	margin: 1em 0;
+}
+
+div.table ul {
+	display: flex;
+	align-items: center;
+	list-style: none;
+	padding: 1px;
+	margin: 0;
+}
+
+div.table li:first-child {
+	text-align: right;
+	padding: .5em;
+	flex: 2;
+}
+
+div.table li:last-child {
+	flex: 3;
+}
+
+footer {
+	display: flex;
+	margin-top: 1em;
+}
+
+footer input {
+    flex: 1;
+    font-family: "Font Awesome 5 Free";
+    font-weight: bold;
+}
+
+#close {
+    font-family: "Font Awesome 5 Free";
+    display: block;
+    float: right;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+#close:hover {
+    transform: scale(1.2);
+}
+
+.bg_loading {
+	position: absolute;
+}
+
+body:not(.root) .root,
+body:not(.edit) input[type=reset] {
+	display: none;
+}
+
+		</style>
+        <script>
+
+function initialize (user) {
+    if (user) {
+        $.form.elements["name"].value = user.name;
+        $.form.elements["name"].disabled = true;
+
+        $.form.elements["sms"].value = user.sms || "";
+        $.form.elements["email"].value = user.email || "";
+
+        $.form.elements["sms"].select();
+
+        document.body.classList.add("edit");
+    }
+
+    document.body.classList.remove("loading");
+}
+
+function onReset (e) {
+    if(!confirm("수신자 정보를 삭제하겠습니까?")) {
+        return;
+    }
+
+    e.preventDefault();
+
+    const user = $.form.elements["name"].value;
+
+    document.body.classList.add("loading");
+
+    $.request.execute({
+        command: "remove",
+        target: "user",
+        name: user
+    }, function () {
+        switch (this.status) {
+        case 200:				
+            top.closeDialog(true);
+
+            break;
+        default:
+            showMessage(this);
+        }
+
+        document.body.classList.remove("loading");
+    });
+};
+
+function onSubmit(e) {
+    e.preventDefault();
+
+    const
+        request = {
+            target: "user",
+            name: $.form.elements["name"].value,
+            user: {
+                name: $.form.elements["name"].value
+            }
+        };
+
+    if (!$.form.elements["sms"].value && !$.form.elements["email"].value) {
+        return alert("수신 정보가 하나 이상 필요합니다.");
+    }
+
+    request.user.sms = $.form.elements["sms"].value || undefined;
+    request.user.email = $.form.elements["email"].value || undefined;
+
+    if (document.body.classList.contains("edit")) {
+        // 수정
+        request.command = "set";
+    }
+    else {
+        // 생성
+        request.command = "add";
+    }
+
+    document.body.classList.add("loading");
+
+    $.request.execute(request, function () {
+        switch (this.status) {
+        case 200:
+            top.closeDialog(true);
+
+            break;
+        default:
+            showMessage(this);
+        }
+
+        document.body.classList.remove("loading");
+    });
+	};
+
+function showMessage(xhr) {
+    switch (xhr.status) {
+    case 401:
+        alert("Notice!\n\n"+ "세션 만료.");
+
+        break;
+    default:
+        alert(`Error!\n\n오류코드 ${xhr.status}.`);
+    }
+
+    try {
+        console.log(JSON.parse(xhr.responseText).error);
+    } catch (e) {}
+}
+
+        </script>
+	</head>
+	
+	<body class="loading">
+	
+		<form autocomplete="off">
+			<h2>
+                <span  id="close" title="대화창 닫기">&#xf00d;</span>
+                수신자 정보
+            </h2>
+			<div class="table">
+				<ul>
+					<li>이름</li>
+					<li>
+						<input type="text" name="name" class="table text"
+							placeholder="홍길동" autofocus required>
+					</li>
+				</ul>
+				<ul>
+					<li>문자 수신번호</li>
+					<li>
+						<input type="text" name="sms" class="table text"
+							placeholder="기호(-) 없이 숫자만">
+					</li>
+				</ul>
+				<ul>
+					<li>메일 수신주소</li>
+					<li>
+						<input type="email" name="email" class="table text"
+							placeholder="홍길동@example.com">
+					</li>
+				</ul>
+			</div>
+			<footer class="root">
+				<input type="reset" value="&#xf1f8; 삭제">
+				<input type="submit" value="&#xf0c7; 저장">
+			</footer>
+			<div class="bg_loading"></div>
+		</form>
+        
+        <script src="/js/request.js"></script>
+		<script>
+
+const
+    search = new URLSearchParams(window.location.search),
+    $ = {
+        request: new Request(),
+        name: search.get("name") || undefined,
+        form: document.querySelector("form")
+    };
+
+if (top.account.level === 0) {
+    $.form.onsubmit = onSubmit;
+    $.form.onreset = onReset;
+
+    document.body.classList.add("root");
+}
+
+document.addEventListener("keydown", function (e) {
+	switch (e.keyCode) {
+	case 27:
+        top.closeDialog();
+		
+		break;
+	}
+});
+
+document.getElementById("close").onclick = e => top.closeDialog();
+
+if ($.name) {
+    $.request.execute({
+        command: "get",
+        target: "user",
+        name: $.name
+    }, function () {
+        switch (this.status) {
+        case 200:
+            initialize(JSON.parse(this.responseText));
+
+            break;
+        default:
+            showMessage(this);
+        }
+    });
+} else {
+    initialize();
+}
+
+		</script>
+	
+	</body>
+	
+</html>

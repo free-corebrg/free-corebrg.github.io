@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<meta http-equiv="Cache-Control" content="No-Cache">
+		
+		<title>ITAhM</title>
+		
+		<style>
+@import "/css/itahm.css";
+@import "/css/fa.css";
+
+body {
+	position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+	margin: 0; padding: 0;
+    background-color: #000;
+    color: #fff;
+    border: 2px inset #ff0;
+}
+
+header {
+    position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+    padding: 1em;
+}
+
+header >span {
+    padding: 0.5em;
+}
+
+#grid_x {
+    content: "";
+    position: absolute; top: 60px; right: 0; bottom: 60px; left: 0;
+    border-top: 1px solid rgba(200, 200, 200, 0.5);
+    border-bottom: 1px solid rgba(200, 200, 200, 0.5);
+}
+
+#grid_y {
+    content: "";
+    position: absolute; top: 0; right: 190px; bottom: 0; left: 0;
+    border-right: 1px solid rgba(200, 200, 200, 0.5);
+}
+
+.chart {
+    position: absolute; top: 50px; right: 180px; bottom: 50px; left: 0;
+}
+
+#max {
+    position: absolute; top: 0; right: 0;
+    transform: translateY(-100%);
+    padding: 0.5em;
+}
+
+#min {
+    position: absolute; right: 0; bottom: 0;
+    transform: translateY(100%);
+    padding: 0.5em;
+}
+
+#cur {
+    position: absolute; right: 0; top: 50%;
+    transform: translate(100%, -50%);
+    font-weight: bolder;
+    font-size: 2em;
+    text-shadow: 0 2px 3px #f00;
+}
+
+svg {
+    width: 100%; height: 100%;
+}
+
+#graph path {
+    stroke-width: 3px;
+    fill-opacity: 0.6;
+}
+
+#pointer {
+    transition: all 0.5s;
+}
+
+#save {
+    font-family: "Font Awesome 5 Free";
+    position: absolute; left: 10px; bottom: 10px;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
+#save:hover {
+    color: #fcba30;
+    transition: color 0.5s linear;
+}
+
+stop:nth-of-type(1) {
+    stop-color: #fcfcfc;
+}
+
+stop:nth-of-type(2) {
+    stop-color: #efeff1;
+}
+
+stop:nth-of-type(3) {
+    stop-color: #9b5050;
+}
+
+		</style>
+		<script>
+
+function Path() {
+    this.initialize(arguments);
+};
+
+Path.NS = "http://www.w3.org/2000/svg";
+Path.COLOR = "#0084ff";
+
+Path.prototype = {
+    initialize: function (args) {
+        const color = args[1] || Path.COLOR;
+
+        this.path = document.createElementNS(Path.NS, "path");
+
+        this.beginPath();
+
+        //args[0].insertBefore(this.path, args[0].lastElementChild);
+        args[0].appendChild(this.path, args[0].lastElementChild);
+
+        this.path.setAttributeNS(null, "stroke", color);
+        this.path.setAttributeNS(null, "fill", color);
+    },
+    
+    moveTo: function (x, y) {
+        this.distance[this.distance.length] = "M"+ x +" "+ y;
+        
+        return this;
+    },
+    
+    lineTo: function (x, y) {
+        this.distance[this.distance.length] = "L"+ x +" "+ y;
+        
+        return this;
+    },
+    
+    v: function (y) {
+        this.distance[this.distance.length] = "V"+ y;
+        
+        return this;
+    },
+    
+    draw: function () {
+        this.path.setAttributeNS(null, "d", this.distance.join(" "));
+    },
+    
+    set: function (key, value) {
+        this.path.setAttributeNS(null, key, value);
+    },
+    
+    beginPath: function () {
+        this.distance = [];
+    },
+    
+    closePath: function () {
+        this.distance[this.distance.length] = "Z"
+    }
+};
+    
+function RealtimeData() {
+	this.initialize(PERIOD);
+}
+
+RealtimeData.prototype = {
+	initialize: function (period) {
+		this.period = period;
+		this.valueArray = [];
+		this.dateArray = [];
+	},
+	put: function (value) {
+		var millis = new Date().getTime();
+		
+		this.dateArray.push(millis);
+		this.valueArray.push(value);
+		
+		millis -= this.period;
+		
+		while (this.dateArray[0] < millis) {
+			this.dateArray.shift();
+			this.valueArray.shift();
+		}
+		
+		this.max = Math.max.apply(undefined, this.valueArray);
+		this.min = Math.min.apply(undefined, this.valueArray);
+	},
+    draw: function (path, pointer, max, min, height, tpp) {
+        const
+            now = new Date(),
+            valueRatio = max === min? undefined: height / (max - min);
+
+        path.beginPath();
+
+        var x, y, value;
+
+        this.dateArray.forEach((millis, i) => {
+            value = this.valueArray[i];
+          
+            y = valueRatio? (value - min) * valueRatio: height /2;
+
+            x = (now - millis) / tpp;
+
+            if (i === 0) {
+                path.moveTo(x, 0);
+            }
+            
+            path.lineTo(x, y);
+        });
+
+        path.lineTo(x, 0);
+
+        path.draw();
+
+        pointer.setAttributeNS(null, "cy", y);
+
+        this.last = value;
+    },
+    download: function (toString, file) {
+        const rows = [];
+
+        rows.push("index,timestamp,value");
+
+        this.dateArray.forEach((millis, i) => {
+            rows.push([i, toDateTimeString(millis), toString(this.valueArray[i])].join(","));
+        });
+
+        ITAhM.util.download(new Blob(["\ufeff", rows.join("\n")] ,{
+            type: "text/csv;charset=utf-8;"
+        }), file);
+    }
+};
+
+function toDateTimeString(millis) {
+    var
+        date = new Date(millis),
+        year = date.getFullYear(),
+        month = date.getMonth() + 1,
+        day  = date.getDate(),
+        h = date.getHours(),
+        m = date.getMinutes(),
+        s = date.getSeconds();
+    
+    return year +"-"+ (month > 9? "": "0") + month +"-"+ (day > 9? "": "0") + day +" "
+        + (h > 9? "": "0") + h +":"+ (m > 9? "": "0") + m +":"+ (s > 9? "": "0") + s;
+}
+
+function resize() {
+    var
+        chartRect = document.getElementById("chart").getBoundingClientRect(),
+        yRect = document.getElementById("grid_x").getBoundingClientRect(),
+        xRect = document.getElementById("grid_y").getBoundingClientRect();
+
+    window.chartHeight = yRect.height,
+    window.chartWidth = xRect.width;
+    window.chartTPP = PERIOD / chartWidth;
+
+    document.getElementById("graph").transform.baseVal.getItem(0)
+       .setTranslate(chartWidth, chartHeight + yRect.top - chartRect.top);
+}
+
+		</script>
+	</head>
+	
+	<body>
+        <header></header>
+        <div id="grid_x"></div>
+        <div id="grid_y"></div>
+        <div class="chart">
+            <span id="max"></span>
+            <span id="min"></span>
+            <span id="cur"></span>
+            <svg id="chart" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <radialGradient id="pointer_gradient" cx="50%" cy="50%" r="50%" fx="50%" fy="90%">
+                        <stop offset="0%" />
+                        <stop offset="30%" />
+                        <stop offset="100%" />
+                    </radialGradient>
+                </defs>
+                <g id="graph" transform="translate(0) scale(-1 -1)">
+                    <g id="path" transform="translate(0)"></g>
+                    <circle id="pointer" cx="0" r="10" fill="url(#pointer_gradient)" />
+                </g>
+            </svg>
+        </div>
+        <a id="save" title="CSV 내보내기">
+            &#xf019; Download
+        </a>
+		<script src="/js/ITAhM.js"></script>
+		<script src="/js/object.js"></script>
+		<script>
+
+const PERIOD = 60 *1000;
+var resetAnimation = false;
+
+function draw(realtimeObj) {
+    if (!realtimeObj.path) {
+        realtimeObj.path = new Path(document.getElementById("path"), realtimeObj.color || "#0084ff");
+    }
+
+    resetAnimation = true;
+
+    realtimeObj.data.draw(
+        realtimeObj.path,
+        document.getElementById("pointer"),
+        realtimeObj.data.max,
+        realtimeObj.data.min,
+        window.chartHeight,
+        window.chartTPP);
+
+    document.getElementById("cur").textContent = realtimeObj.toString(realtimeObj.data.last);
+    document.getElementById("max").textContent = realtimeObj.toString(realtimeObj.data.max);
+    document.getElementById("min").textContent = realtimeObj.toString(realtimeObj.data.min);
+
+    document.getElementById("save").onclick = realtimeObj.data.download.bind(realtimeObj.data, realtimeObj.toString, realtimeObj.file);
+}
+
+// resize
+(function (delay) {
+	var start;
+	
+	function optimize(timestamp) {
+        if (!start) {
+            start = timestamp;
+        }
+
+		if (timestamp - start > delay) {
+			resize();
+		}
+		else {
+			requestAnimationFrame(optimize);
+		}
+	}
+	
+	window.addEventListener("resize", function() {
+        if (start) {
+            start = undefined;
+        } else {
+            requestAnimationFrame(optimize);
+        }
+	});
+})(300);
+
+resize();
+
+function animation (start) {
+    return function (timestamp) {
+        if (!start) {
+            start = timestamp;
+        }
+
+        if (window.resetAnimation) {
+            window.resetAnimation = false;
+
+            start = undefined;
+
+            document.getElementById("path").transform.baseVal.getItem(0).setTranslate(0, 0);
+        }
+        else {
+            document.getElementById("path").transform.baseVal.getItem(0).setTranslate((timestamp - start) / window.chartTPP, 0);
+        }
+        
+        window.requestAnimationFrame(animation(start));
+    };
+}
+
+window.requestAnimationFrame(animation());
+
+		</script>
+	
+	</body>
+	
+</html>

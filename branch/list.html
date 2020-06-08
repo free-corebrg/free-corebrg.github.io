@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<meta http-equiv="Cache-Control" content="no-cache">
+		<title>List @ ITAhM</title>
+		
+		<style>
+@import "/css/itahm.css";
+@import "/css/glyphicon.css";
+
+body {
+	margin: 0; padding: 0;
+	position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	background-color: rgba(0, 0, 0, .8);
+}
+
+main {
+    position: relative;
+    width: 512px;
+    height: 384px;
+    padding: 2em;
+    background-color: #ffffff;
+	display: flex;
+	flex-direction: column;
+}
+
+aside {
+	display: flex;
+	justify-content: space-between;
+}
+
+#list {
+	flex: 1;
+	background-color: #fff;
+	overflow-y: auto;
+}
+
+header {
+	background-color: #000;
+	color: #fff;
+	font-weight: bold; text-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
+	border-bottom: 4px solid #92a7af;
+	border-radius: 3px 3px 0 0;
+	padding: 0.5em 0;
+	text-shadow: 1px 1px 1px #00f;
+}
+
+#header >li {
+	position: relative;
+	display: flex; align-items: center; justify-content: center;
+}
+
+button >img {
+	vertical-align: middle;
+	margin: 0.5em;
+	height: 1em; width: 1em;
+}
+
+#sort::after {
+	content: "▲";
+	cursor: pointer;
+	position: absolute; right: 3px;
+}
+
+#sort.reverse::after {
+	content: "▼";
+}
+
+#header >li:not(:last-child) {
+	border-right-color: #ddd;
+}
+
+aside {
+    line-height: 2em;
+    margin-bottom: 0.5em 0;
+}
+
+aside select,
+aside input,
+aside button {
+    height: 100%;
+    padding: 0.5em;
+    box-sizing: border-box;
+    vertical-align: middle;
+}
+
+ul {
+	margin: 0; padding: 0;
+	list-style: none;
+	display: flex;
+}
+
+li {
+	border: 1px solid transparent;
+	padding: 3px;
+	width: 120px;
+	box-sizing: border-box;
+    flex: 1;
+}
+
+#list li {
+	color: #373d3f;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+li:nth-child(1) {
+	flex: none;
+	width: 4em;
+}
+
+label {
+	color: #fff;
+}
+
+#list {
+    border: 1px solid #ddd;
+}
+
+#list> ul {
+	border-bottom: 1px solid #c1c3d1;
+	padding: 0.5em;
+	/*cursor: pointer;*/
+}
+
+#list> ul:nth-child(odd) {
+	background-color: #ebebeb;
+}
+
+footer {
+	float: none;
+	color: #fcba30;
+	font-weight: bold;
+	text-align: right;
+	padding: 1em;
+}
+
+button.glyph::before {
+    font-family: "Glyphicons Halflings";
+    font-weight: bolder;
+}
+
+button.submit::before {
+
+    content: "\e003";
+    color: #5cb85c;
+    margin-right: 0.5em;
+}
+
+button.add::before {
+    content: "\002b";
+    color: #5cb85c;
+    margin-right: 0.5em;
+}
+
+.close {
+    position: absolute; right: 1em; top: 1em;
+    font: 1.2em "Glyphicons Halflings";
+}
+
+#close {
+    display: inline-block;
+    transition: 0.2s linear;
+}
+
+#close:hover {
+	transform: scale(1.2) rotate(90deg);
+    cursor: pointer;
+}
+
+.bg_loading {
+    position: absolute;
+}
+
+#list >ul.hidden,
+body.keyword #list> ul:not(.keyword) {
+	display: none;
+}
+
+		</style>
+		
+		<script>
+// static function
+const REGEXP_IPV4 = new RegExp("^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\."
+	+ "(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\."
+	+ "(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\."
+	+ "(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$");
+
+function IP2Int(s) {
+	const o = REGEXP_IPV4.exec(s);
+	
+	if(o === null || o.length != 5) return 0xffffffff;
+	
+	var n = 0;
+	for(let i=1; i<5; i++) {
+		n <<= 8;
+		n |= o[i];
+	}
+	
+	return n >>> 0;
+}
+		</script>
+		
+		<script>
+
+function showMessage(data) {
+    switch (data.status) {
+    case 401:
+        alert("Error!\n\n"+ "세션 만료.");
+
+        break;
+    default:
+        alert("Error!\n\n"+ "오류코드: "+ data.status);
+    }
+
+    try {
+        console.log(JSON.parse(data.responseText).error);
+    } catch (e) {}
+}
+
+//public
+function reload() {
+	window.location.reload();
+}
+
+function initialize() {
+	const
+		df = document.createDocumentFragment(),
+		ipList = Object.keys($.nodeData).sort(function (a, b) {
+			const
+				ipA = $.nodeData[a].ip,
+				ipB = $.nodeData[b].ip;
+			
+			if (ipA && ipB) {
+				return IP2Int(ipA) - IP2Int(ipB);
+			}
+			else if (ipB) {
+				return 1;
+			}
+			else if (ipA) {
+				return -1;
+			}
+			else {
+				return 0;
+			}
+		});
+
+	for (let i=0, _i=ipList.length, id, row ; i<_i; i++) {
+		id = ipList[i];
+	
+        row = createRow(id, $.nodeData[id]);
+
+        if (row) {
+		    df.appendChild(row);
+        }
+	}
+	
+	list.appendChild(df);
+	
+	document.body.classList.remove("loading");
+
+    initLabel();
+}
+
+function createRow(id, node) {
+    if (!(node.type in $.iconData)) {
+        node.type = "unknown";
+
+        $.thread.onmessage = e => e;
+
+        $.thread.postMessage({
+            action: "request",
+            request: {
+                command: "set",
+                target: "node",
+                id: Number(id),
+                node: node
+            }
+        });
+    }
+
+    if ("type" in node && $.iconData[node.type].group === "group" || top.getPosition(id)) {
+        return;
+    }
+
+	const
+        row = document.createElement("ul"),
+        checkbox = document.createElement("input");
+    
+    checkbox.type="checkbox";
+    checkbox.dataset.id = id;
+
+    row.appendChild(document.createElement("li")).appendChild(checkbox);
+	row.appendChild(document.createElement("li")).textContent = node.ip || "";
+	row.appendChild(document.createElement("li")).textContent = node.name || "";
+	
+	if (node.label) {
+		const labels = node.label.split(",");
+		
+		for (let i=0, length=labels.length, label; i<length; i++) {
+			label = labels[i];
+			
+			if (!(label in $.labelMap)) {
+				$.labelMap[label] = [];
+			}
+
+			$.labelMap[label].push(row);
+		}
+	}
+	else {
+		$.labelMap[""].push(row);
+	}
+	
+	return row;
+}
+
+function initLabel() {
+	var df = document.createDocumentFragment();
+
+	for (let label in $.labelMap) {
+        if (!label) {
+            continue;
+        }
+
+		df.appendChild(document.createElement("option")).text = label;
+	}
+	
+	$.label.insertBefore(df, $.label.firstChild);
+}
+
+		</script>
+		
+	</head>
+	
+	<body class="loading">
+		<main>
+            <div class="close">
+                <span id="close" title="대화창 닫기">&#xe014</span>
+            </div>
+			<aside>
+				<nav>
+					<div>
+						<select id="label">
+							<optgroup>
+								<option value="">미분류
+							</optgroup>
+							<optgroup>
+								<option selected>모두 보기
+							</optgroup>
+						</select>
+					</div>
+				</nav>
+				<form>
+					<input type="text" name="keyword" placeholder="IP, Type, Name">
+					<button class="submit glyph">찾기</button>
+					<button class="add glyph">추가</button>
+				</form>
+			</aside>
+			
+			<header>
+				<ul id="header">
+					<li></li>
+					<li id="sort">IP</li>
+					<li>Name</li>
+				</ul>
+			</header>
+			
+            <div id="list"></div>
+            <div class="bg_loading"></div>
+		</main>
+		
+        <script src="/js/ITAhM.js"></script>
+        <script src="/js/icon.js"></script>
+		<script src="/js/object.js"></script>
+		<script>
+
+const $ = {
+    thread: new Worker("/js/thread.js"),
+    label: document.getElementById("label"),
+    labelMap: {
+		"": []
+    },
+    iconData: ITAhM.iconData
+};
+
+var
+	header = document.getElementById("header"),
+	list = document.getElementById("list"),
+	customs, selected;
+
+$.thread.postMessage({
+    action: "initialize",
+    agent: window.localStorage.getItem("agent")
+});
+
+$.label.onchange = function () {
+	const
+		df = document.createDocumentFragment(),
+		label = this.value;
+	
+	document.body.classList.add("loading");
+	
+	if ($.label.selectedIndex === $.label.options.length -1) {
+		for (let row; row = window.list.firstElementChild;) {
+			df.appendChild(row).classList.remove("hidden");
+		}
+	}
+	else {
+		for (let row; row = window.list.firstElementChild;) {
+			df.appendChild(row).classList[$.labelMap[label].indexOf(row) == -1? "add": "remove"]("hidden");
+		}
+	}
+	
+	window.list.appendChild(df);
+
+	document.body.classList.remove("loading");
+};
+
+document.getElementById("close").onclick = function (e) {
+    top.closeDialog();
+};
+
+document.getElementById("sort").onclick = function (e) {
+	const
+		reverse = this.classList.toggle("reverse"),
+		df = document.createDocumentFragment();
+
+	[].slice.call(window.list.children).sort(reverse?
+		function (a, b) {
+			const
+				ipA = a.children[1].textContent,
+				ipB = b.children[1].textContent;
+			
+			if (ipA && ipB) {
+				return IP2Int(ipB) - IP2Int(ipA);
+			}
+			else if (ipB) {
+				return 1;
+			}
+			else if (ipA) {
+				return -1;
+			}
+			else {
+				return 0;
+			}
+		}:
+		function (a, b) {
+			const
+				ipA = a.children[1].textContent,
+				ipB = b.children[1].textContent;
+			
+			if (ipA && ipB) {
+				return IP2Int(ipA) - IP2Int(ipB);
+			}
+			else if (ipB) {
+				return 1;
+			}
+			else if (ipA) {
+				return -1;
+			}
+			else {
+				return 0;
+			}
+		}).forEach(function (e) {
+			df.appendChild(e);
+		});
+
+	window.list.appendChild(df);
+};
+
+(function (form) {
+	// 키워드로 필터링
+	form.querySelector("button.submit").onclick = form.onsubmit = function (e) {
+		e.preventDefault();
+		
+		document.body.classList.add("loading", "keyword");
+
+		const keyword = form.elements["keyword"].value;
+
+		if (!keyword) {
+			resetKeyWord();
+
+			return;
+		}
+
+		const df = document.createDocumentFragment();
+		
+		for (let row, cols; row = window.list.firstElementChild;) {
+			cols = row.children;
+
+			df.appendChild(row);
+
+			for (var i=0, length=cols.length; i<length; i++) {
+				row.classList.remove("keyword");
+
+				if (cols[i].textContent.indexOf(keyword) !== -1) {
+					row.classList.add("keyword");
+					
+					break;
+				}
+			}
+		}
+		
+		window.list.appendChild(df);
+
+		document.body.classList.remove("loading");
+	};
+
+	form.querySelector("button.add").onclick =  function (e) {
+		e.preventDefault();
+	
+		[].forEach.call(document.getElementById("list").querySelectorAll(":checked"), checkbox => {
+            if (checkbox.checked) {
+                let pos = top.getPosition(checkbox.dataset.id);
+
+                if (!pos) {
+                    pos = {};
+
+                    top.setPosition(checkbox.dataset.id, pos);
+                }
+
+                pos.parent = Number(window.sessionStorage.getItem("parent"));
+            }
+        });
+
+        top.test();
+
+        window.location.reload();
+	};
+
+	function resetKeyWord() {
+		const df = document.createDocumentFragment();
+
+		document.body.classList.add("loading");
+		
+		for (let row; row = window.list.firstElementChild;) {
+			df.appendChild(row).classList.remove("keyword");
+		}
+
+		document.body.classList.remove("keyword");
+
+		window.list.appendChild(df);
+
+		document.body.classList.remove("loading");
+	}
+
+}) (document.querySelector("form"));
+
+function initIcon(e) {
+    switch(e.data.status) {
+    case 200:
+        const iconData = JSON.parse(e.data.responseText);
+
+        for (let type in iconData) {
+            $.iconData[type] = iconData[type];
+        }
+        
+        initialize();
+
+        break;
+    case -1:
+        console.trace(e.data.exception);
+    default:
+        showMessage(e.data);
+    }
+}
+
+function initNode(e) {
+    switch(e.data.status) {
+    case 200:
+        $.nodeData = JSON.parse(e.data.responseText);
+            
+        $.thread.onmessage = initIcon;
+        
+        $.thread.postMessage({
+            action: "request",
+            request: {
+                command: "get",
+                target: "icon"
+            }
+        });
+
+        break;
+    case -1:
+        console.trace(e.data.exception);
+    default:
+        showMessage(e.data);
+    }
+}
+
+$.thread.onmessage = initNode;
+
+$.thread.postMessage({
+    action: "request",
+    request: {
+        "command": "get",
+        "target": "node"
+    }
+});
+
+</script>
+	
+	</body>
+	
+</html>

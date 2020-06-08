@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html>
+	<head>
+        <meta charset="UTF-8">
+        <meta http-equiv="Cache-Control" content="no-cache">
+		<title>Dialog @ Line</title>
+		
+		<style>
+@import "/css/style.css";
+@import "/css/fa.css";
+
+body {
+	margin: 0; padding: 0;
+	position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	background-color: rgba(0, 0, 0, .8);
+}
+
+h2 {
+	margin: 0; padding: 10px;
+	background-color: #0084ff;
+    color: #fff;
+    text-shadow: 0 2px 3px #000;
+}
+
+h3 {
+	margin-top: 0;
+}
+
+.dialog {
+	width: 380px;
+	padding: 20px;
+	background-color: #fff;
+}
+
+input[type="checkbox"] {
+	vertical-align: middle;
+}
+
+footer {
+	display: flex;
+	margin-top: 1em;
+}
+
+footer input {
+    flex: 1;
+    font-family: "Font Awesome 5 Free";
+    font-weight: bold;
+}
+
+#close {
+    font-family: "Font Awesome 5 Free";
+    display: block;
+    float: right;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+#close:hover {
+    transform: scale(1.2);
+}
+
+table {
+    width: 100%;
+    margin-top: 1em;
+}
+
+th {
+    background-color: #686160;
+    color: #fff;
+}
+
+td, th {
+    padding: 3px;
+}
+
+input[type=text],
+input[type=number],
+input[type=submit],
+input[type=reset],
+select {
+    padding: 0.5em;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+input[type="number"] {
+	text-align: right;
+}
+
+#create {
+    width: 100%;
+    padding: 4em;
+    box-sizing: border-box;
+    text-align: center;
+    margin-top: 1em;
+}
+
+main {
+    margin-top: 1em;
+}
+
+.link {
+    border: 1px solid #aaa;
+}
+
+.head {
+    font-weight: bold;
+    background-color: #686160;
+    color: #fff;
+    display: flex;
+}
+
+.head span {
+    display: inline-block;
+    padding: 0.6em;
+}
+
+.head span:first-child {
+    flex: 1;
+}
+
+.button {
+    font-family: "Font Awesome 5 Free";
+    display: inline-block;
+    cursor: pointer;
+}
+
+.button.remove {
+    color: #dc3545;
+}
+
+.button.apply {
+    color: #28a745;
+}
+
+.button:hover {
+    transform: translateY(-2px);
+}
+
+.button:active {
+    transform: none;
+}
+
+.summary {
+    display: flex;
+    padding: 0.5em;
+    background-color: #ebebeb;
+    border-bottom: 1px solid #8a7f80;
+    cursor: pointer;
+}
+
+.summary.selected {
+    cursor: default;
+}
+
+.summary:hover {
+    background-color: #c7c6c4;
+}
+
+.summary.selected {
+    background-color: inherit;
+    border-bottom: none;
+}
+
+.summary span {
+    flex: 1;
+    text-align: center;
+}
+
+.summary span:empty::after {
+    content: "선택하지 않음";
+}
+
+div.details {
+    margin: 0.5em; padding: 0.5em;
+    border: 1px solid #aaa;
+}
+
+div.details ul {
+    padding: 0; margin: 0;
+    list-style: none;
+}
+
+div.details li {
+    display: flex;
+}
+
+div.details li >*:first-child {
+    flex: 2;
+}
+
+div.details li >*:last-child {
+    flex: 3;
+}
+
+div.details li >* {
+    padding: 0.5em;
+}
+
+div.details select {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.container {
+    position: relative;
+}
+
+.bg_loading {
+    position: absolute;
+}
+
+nav {
+    position: relative;
+    margin-top: 0.5em;
+    text-align: right;
+    pointer-events: none;
+}
+
+nav .button {
+    pointer-events: all;
+}
+
+nav::after {
+    font-family: "Font Awesome 5 Free";
+    display: block;
+    content: "\f0d8";
+    position: absolute; bottom: 0; left: 50%;
+    transform: translateX(-50%) scale(1.5);
+    pointer-events: all;
+    cursor: pointer;
+}
+
+body:not(.root) .root,
+body:not(.details) div.details,
+body:not(.initialized) main,
+body.initialized #create {
+	display: none;
+}
+
+		</style>
+		
+        <script src="/js/snmp.js"></script>
+        <script>
+
+function onCloseDetails (e) {
+    const details = document.body.querySelector(".details");
+
+    details.previousElementSibling.classList.remove("selected");
+
+    document.body.classList.remove("details");
+}
+
+function onCreateLink (e) {
+    document.body.classList.add("loading");
+
+    $.request.execute({
+        command: "add",
+        target: "path",
+        nodeFrom: $.idFrom,
+        nodeTo: $.idTo
+    }, function () {
+        switch(this.status) {
+        case 200:
+            top.resetDialog();
+
+            window.location.reload();
+
+            break;
+        case 409:
+            alert("Error!\n\n경로 생성 실패.");
+
+            break;
+        default:
+            showMessage(this);
+        }
+    });
+}
+
+function onSaveLink (e) {
+    document.body.classList.add("loading");
+
+    const link = {
+            nodeFrom: $.idFrom,
+            nodeTo: $.idTo,
+            id: Number(document.querySelector(".summary.selected").dataset.id)
+        };
+    var select;
+
+    select = document.getElementById("index_from");
+
+    if (select.value) {
+        link.indexFrom = Number(select.value);
+        link.indexFromName = select.options[select.selectedIndex].text;
+    }
+
+    select = document.getElementById("index_to");
+
+    if (select.value) {
+        link.indexTo = Number(select.value);
+        link.indexToName = select.options[select.selectedIndex].text;
+    }
+
+    if (Object.keys($.customInputMap).length > 0) {
+        const extra = {};
+    
+        for (let key in $.customInputMap) {
+            extra[key] = $.customInputMap[key].value;
+        }
+
+        link.extra = extra;
+    }
+
+    $.request.execute({
+        command: "set",
+        target: "link",
+        nodeFrom: $.idFrom,
+        nodeTo: $.idTo,
+        id: link.id,
+        link: link
+    }, function () {
+        switch(this.status) {
+        case 409:                
+            alert("Error!\n\n링크 수정 실패.\n"+"이미 다른 노드와 연결된 인터페이스 일 수 있습니다.");
+        case 200:
+            top.resetDialog();
+            
+            window.location.reload();
+
+            break;
+        default:
+            showMessage(this);
+        }
+    });
+}
+
+function onAddLink (e) {
+    document.body.classList.add("loading");
+
+    $.request.execute({
+        command: "add",
+        target: "link",
+        nodeFrom: $.idFrom,
+        nodeTo: $.idTo
+    }, function () {
+        switch(this.status) {
+        case 409:                
+            alert("Error!\n\n링크 추가 실패.");
+        case 200:
+            window.location.reload();
+
+            break;
+        default:
+            showMessage(this);
+        }
+    });
+}
+
+function onRemoveLink (e) {
+    document.body.classList.add("loading");
+
+    $.request.execute({
+        command: "remove",
+        target: "link",
+        nodeFrom: $.idFrom,
+        nodeTo: $.idTo,
+        id: Number(document.querySelector(".summary.selected").dataset.id)
+    }, function () {
+        switch(this.status) {
+        case 409:                
+            alert("Error!\n\n링크 삭제 실패.");
+        case 200:
+            top.resetDialog();
+
+            window.location.reload();
+
+            break;
+        default:
+            showMessage(this);
+        }
+    });
+}
+
+function onSubmit (e) {
+    e.preventDefault();
+
+    const path = {
+            nodeFrom: $.idFrom,
+            nodeTo: $.idTo
+        };
+
+    ["type", "color", "size"].forEach(name => {
+        if ($.form.elements["use_"+ name].checked && $.form.elements[name].value) {
+            path[name] = $.form.elements[name].value;
+        }
+    });
+    
+    $.request.execute({
+        command: "set",
+        target: "path",
+        nodeFrom: $.idFrom,
+        nodeTo: $.idTo,
+        path: path
+    }, function () {
+        switch(this.status) {
+        case 200:
+            top.closeDialog(true);
+
+            break;
+        default:
+            showMessage(this);
+        }
+    });
+}
+
+function onReset (e) {
+    e.preventDefault();
+
+    if ($.linkData) {
+        alert("Notice!\n\n경로에 링크가 존재합니다.\n링크를 먼저 삭제하십시오.");
+    
+        return;
+    }
+
+    if (!(confirm("Confirm.\n\n경로를 삭제하겠습니까?"))) {
+        return;
+    }
+
+    document.body.classList.add("loading");
+    
+    $.request.execute({
+        command: "remove",
+        target: "path",
+        nodeFrom: $.idFrom,
+        nodeTo: $.idTo,
+    }, function () {
+        switch(this.status) {
+        case 200:
+            top.closeDialog(true);
+
+            break;
+        default:
+            showMessage(this);
+        }
+    });
+}
+
+function showMessage(xhr) {
+    switch (xhr.status) {
+    case 401:
+        alert(`Notice!\n\n세션 만료.`);
+
+        break;
+    default:
+        alert(`Error!\n\n오류코드 ${xhr.status}.`);
+    }
+
+    try {
+        console.log(JSON.parse(xhr.responseText).error);
+    } catch (e) {}
+}
+
+        </script>
+	</head>
+	
+	<body class="loading">
+	
+		<article class="dialog" autocomplete="off">
+            <h2>
+                <span  id="close" title="대화창 닫기">&#xf00d;</span>
+                경로
+            </h2>
+            <div class="container">
+                <input id="create" type="button" value="경로 생성">
+                <main>
+                    <div class="head">
+                        <span>링크</span>
+                        <span id="add_link" title="링크 추가" class="button add root">
+                            &#xf0fe;
+                        </span>
+                    </div>
+                    <div class="link">
+                        <div id="list">
+                            <div class="details">
+                                <ul>
+                                    <li>
+                                        <span id="node_from">
+                                            node1
+                                        </span>
+                                        <select id="index_from" disabled></select>
+                                    </li>
+                                    <li>
+                                        <span id="node_to">
+                                            node2
+                                        </span>
+                                        <select id="index_to" disabled></select>
+                                    </li>
+                                </ul>
+                                <nav class="root">
+                                    <span class="button remove root" id="remove_link" title="삭제">
+                                        &#xf146;
+                                    </span>
+                                    <span class="button apply root" id="set_link" title="적용">
+                                        &#xf14a;
+                                    </span>
+                                </nav>
+                            </div>
+                        </div>
+                    </div>
+                    <form>
+                        <table>
+                            <colgroup>
+                                <col width="100">
+                                <col>
+                                <col>
+                            </colgroup>
+                            <tr>
+                                <th>선 종류</th>
+                                <td><input type="checkbox" name="use_type"></td>
+                                <td>
+                                    <select name="type" required disabled>
+                                        <option value="clock">꺽은선(시계방향)</option>
+                                        <option value="counter">꺽은선(반시계방향)</option>
+                                    </select>
+                            </tr>
+                            <tr>
+                                <th>선 색상</th>
+                                <td><input type="checkbox" name="use_color"></td>
+                                <td><input type="text" name="color" placeholder="기본" required disabled></td>
+                            </tr>
+                            <tr>
+                                <th>선 두께</th>
+                                <td><input type="checkbox" name="use_size"></td>
+                                <td><input type="number" name="size" placeholder="기본" required disabled></td>
+                            </tr>
+                        </table>
+                        
+                        <footer class="root">
+                            <input type="reset" value="&#xf1f8; 삭제">
+                            <input type="submit" value="&#xf0c7; 저장">
+                        </footer>
+                    </form>
+                </main>
+
+                <div class="bg_loading"></div>
+			</div>
+		</article>
+        
+        <script src="/js/request.js"></script>
+		<script>
+
+const
+    search = new URLSearchParams(window.location.search),
+    $ = {
+        request: new Request(),
+        form: document.querySelector("form"),
+        customInputMap: {},
+        idFrom: Number(search.get("from")) || undefined,
+        idTo: Number(search.get("to")) || undefined,
+    };
+
+document.addEventListener("keydown", function (e) {
+	switch (e.keyCode) {
+	case 27:
+        top.closeDialog();
+		
+		break;
+	}
+});
+
+if (top.account.level === 0) {
+    document.body.classList.add("root");
+}
+
+document.getElementById("close").onclick = e => top.closeDialog();
+document.getElementById("create").onclick = onCreateLink;
+document.getElementById("add_link").onclick = onAddLink;
+document.getElementById("set_link").onclick = onSaveLink;
+document.getElementById("remove_link").onclick = onRemoveLink;
+document.body.querySelector("nav").onclick = onCloseDetails;
+
+$.form.onsubmit = onSubmit;
+$.form.onreset = onReset;
+
+["type", "color", "size"].forEach(name => {
+    $.form.elements["use_"+ name].onclick = e => {
+        const element = $.form.elements[name];
+
+        if (e.currentTarget.checked) {
+            element.disabled = false;
+            element.focus();
+        }
+        else {
+            element.value = "";
+            element.disabled = true;
+        }
+    };
+});
+
+function initNodeFrom() {
+    $.request.execute({
+        command: "get",
+        target: "node",
+        id: $.idFrom,
+        resource: true
+    }, function () {
+        switch(this.status) {
+        case 200:
+            $.nodeFrom = JSON.parse(this.responseText);
+
+            initNodeTo();
+            break;
+        default:
+            showMessage(this);
+        }
+    });
+}
+
+function initNodeTo() {
+    $.request.execute({
+        command: "get",
+        target: "node",
+        id: $.idTo,
+        resource: true
+    }, function () {
+        switch(this.status) {
+        case 200:
+            $.nodeTo = JSON.parse(this.responseText);
+
+            initNode();
+
+            break;
+        default:
+            showMessage(this);
+        }
+    });
+}
+
+function initNode() {
+    document.getElementById("node_from").textContent = $.nodeFrom.name || $.nodeFrom.ip || "노드.1";
+
+    if ($.nodeFrom.resource) {
+        const select = document.getElementById("index_from");
+        let indexData, option;
+
+        for (let index in $.nodeFrom.resource) {
+            indexData = $.nodeFrom.resource[index];
+
+            if (ITAhM.snmp.oid.ifAdminStatus in indexData &&
+                indexData[ITAhM.snmp.oid.ifAdminStatus] === "1" &&
+                indexData[ITAhM.snmp.oid.ifSpeed] &&
+                Number(indexData[ITAhM.snmp.oid.ifSpeed]) > 0) {
+                option = document.createElement("option");
+
+                option.value = index;
+                option.text = indexData[ITAhM.snmp.oid.ifName] || indexData[ITAhM.snmp.oid.ifDescr];
+                option.title = indexData[ITAhM.snmp.oid.ifDescr] || indexData[ITAhM.snmp.oid.ifAlias];
+
+                select.appendChild(option);
+            }
+        }
+
+        select.selectedIndex = -1;
+
+        select.disabled = false;
+    }
+
+    document.getElementById("node_to").textContent = $.nodeTo.name || $.nodeTo.ip || "노드.2";
+
+    if ($.nodeTo.resource) {
+        const select = document.getElementById("index_to");
+        let indexData, option;
+
+        for (let index in $.nodeTo.resource) {
+            indexData = $.nodeTo.resource[index];
+
+            if (ITAhM.snmp.oid.ifAdminStatus in indexData &&
+                indexData[ITAhM.snmp.oid.ifAdminStatus] === "1" &&
+                indexData[ITAhM.snmp.oid.ifSpeed] &&
+                Number(indexData[ITAhM.snmp.oid.ifSpeed]) > 0) {
+                option = document.createElement("option");
+
+                option.value = index;
+                option.text = indexData[ITAhM.snmp.oid.ifName] || indexData[ITAhM.snmp.oid.ifDescr];
+                option.title = indexData[ITAhM.snmp.oid.ifDescr] || indexData[ITAhM.snmp.oid.ifAlias];
+
+                select.appendChild(option);
+            }
+        }
+
+        select.selectedIndex = -1;
+
+        select.disabled = false;
+    }
+
+    initPath();
+}
+
+function initPath() {
+    $.request.execute({
+        command: "get",
+        target: "path",
+        nodeFrom: $.idFrom,
+        nodeTo: $.idTo
+    }, function () {
+        switch (this.status) {
+        case 200:
+            const path = JSON.parse(this.responseText);
+
+            ["type", "color", "size"].forEach(name => {
+                if (name in path) {
+                    $.form.elements[name].value = path[name];
+                    $.form.elements[name].disabled = false;
+                    $.form.elements["use_"+ name].checked = true;
+                }
+            });
+            
+            initLink(JSON.parse(this.responseText));
+
+            break;
+        case 204:
+            document.body.classList.remove("loading");
+
+            break;
+        default:
+            showMessage(this);
+        }
+    });
+}
+
+function initLink(path) {
+    document.body.classList.add("initialized");
+
+    $.request.execute({
+        command: "get",
+        target: "link",
+        nodeFrom: $.idFrom,
+        nodeTo: $.idTo
+    }, function () {
+        switch(this.status) {
+        case 200:
+            $.linkData = JSON.parse(this.responseText);
+
+            for (let id in $.linkData) {
+                addLink($.linkData[id]);
+            }
+        case 204:
+            document.body.classList.remove("loading");
+
+            break;
+        default:
+            showMessage(this);
+        }
+    });
+}
+
+function initCustom(customArray) {
+    const
+        df = document.createDocumentFragment(),
+        details = document.body.querySelector(".details");
+    
+    customArray.forEach((custom, i) => {
+        const
+            li = df.appendChild(document.createElement("li")),
+            input = document.createElement("input");
+
+        li.appendChild(document.createElement("span")).textContent = custom;
+        
+        input.type = "text";
+
+        $.customInputMap[custom] = input;
+    
+        li.appendChild(input);
+    });
+    
+    details.insertBefore(df, details.querySelector("nav"));
+}
+
+function openLinkDialog() {
+    const
+        details = document.body.querySelector(".details"),
+        selected = details.previousElementSibling,
+        link = $.linkData && $.linkData[this.dataset.id];
+
+    if (selected) {
+        selected.classList.remove("selected");
+    }
+
+    this.classList.add("selected");
+
+    this.parentNode.insertBefore(details, this.nextSibling);
+
+    if (link) {
+        if (link.indexFrom) {
+            document.getElementById("index_from").value = link.indexTo;
+        } else {
+            document.getElementById("index_from").selectedIndex = -1;
+        }
+
+        if (link.indexTo) {
+            document.getElementById("index_to").value = link.indexTo;
+        } else {
+            document.getElementById("index_to").selectedIndex = -1;
+        }
+
+        for (let key in $.customInputMap) {
+            $.customInputMap[key].value = link.extra && link.extra[key] || "";
+        }
+    }
+
+    document.body.classList.add("details");
+}
+
+function addLink(link) {
+    const summary = document.createElement("div");
+    
+    summary.appendChild(document.createElement("span")).textContent = link.indexFromName || "";
+    summary.appendChild(document.createElement("span")).textContent = link.indexToName || "";
+
+    summary.classList.add("summary");
+
+    document.getElementById("list").appendChild(summary);
+
+    summary.dataset.id = link.id;
+
+    summary.onclick = openLinkDialog;
+}
+    
+$.request.execute({
+    command: "get",
+    target: "setting",
+    key: "customLink",
+}, function () {
+    switch(this.status) {
+    case 200:
+        const settingData = JSON.parse(this.responseText);
+
+        if ("customLink" in settingData) {
+            initCustom(settingData.customLink.split(','));
+        }
+    case 204:
+        initNodeFrom();
+        
+        break;
+    default:
+        showMessage(this);
+    }
+});
+
+		</script>
+	
+	</body>
+	
+</html>

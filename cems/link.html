@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		
+		<title>List @ ITAhM</title>
+		
+		<style>
+@import "/css/itahm.css";
+@import "/css/fa.css";
+
+body {
+	position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+	margin: 0; padding: 1em;
+    display: flex; flex-direction: column;
+}
+
+header {
+    flex: none;
+	padding: 1em;
+	display: flex;
+	justify-content: space-between;
+}
+
+main {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.sort::after {
+    font-family: "Font Awesome 5 Free";
+    content: "\f0dc";
+	cursor: pointer;
+    position: absolute; right: 3px;
+}
+
+.sort.sorted::after {
+	content: "\f0de";
+}
+
+.sort.ascending::after {
+	content: "\f0dd";
+}
+
+header input,
+header select {
+	padding: .5em;
+}
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+tbody tr {
+    border-bottom: 1px solid #ffffff;
+}
+
+th {
+    background-color: #34495e;
+    color: #efefef;
+    position: sticky; top: 0;
+}
+
+th:not(:last-of-type) {
+    border-right: 1px solid rgba(52, 73, 94, 0.8);
+}
+
+th,
+td {
+    padding: 1em;
+    box-sizing: border-box;
+	overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+thead th:first-child {
+    overflow: visible;
+}
+
+nav {
+	display: flex;
+	align-items: center;
+}
+
+nav> div {
+	margin-right: 5px;
+}
+
+label {
+	color: #fff;
+}
+
+
+#list> tr:nth-child(odd) {
+	background-color: #ebebeb;
+}
+
+#save {
+	cursor: pointer;
+}
+
+#save:hover {
+	color: #fff;
+}
+
+#count {
+	font-size: 30px; font-weight: bold;
+	display: inline-block;
+	margin: 0 30px;
+}
+
+.glyph {
+    font: 2em "Font Awesome 5 Free";
+    cursor: pointer;
+}
+
+.glyph:hover {
+    color: #fcba30;
+    transition: color 0.5s linear;
+}
+
+header form input {
+    font-family: "Font Awesome 5 Free";
+}
+
+#list >tr.hidden,
+body.keyword #list> tr:not(.keyword) {
+	display: none;
+}
+
+		</style>
+		<script>
+// static function
+const REGEXP_IPV4 = new RegExp("^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\."
+	+ "(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\."
+	+ "(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\."
+	+ "(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$");
+
+function IP2Int(s) {
+	const o = REGEXP_IPV4.exec(s);
+	
+	if(o === null || o.length != 5) return 0xffffffff;
+	
+	var n = 0;
+	for(let i=1; i<5; i++) {
+		n <<= 8;
+		n |= o[i];
+	}
+	
+	return n >>> 0;
+}
+		</script>
+		
+		<script>
+
+function initList() {
+	const df = document.createDocumentFragment();
+	var link;
+
+    for (let id in $.linkData) {
+        link = $.linkData[id];
+
+        df.appendChild(createRow(id, link.nodeFrom, link.indexFrom, link.indexFromName, link.nodeTo, link.indexTo, link.indexToName, link.extra));
+    }
+
+	$.list.appendChild(df);
+	
+	document.body.classList.remove("loading");
+
+	document.getElementById("count").textContent = count();
+}
+
+function createRow(id, nodeFrom, indexFrom, indexFromName, nodeTo, indexTo, indexToName, extra) {
+	const row = document.createElement("tr");
+
+    [$.nodeData[nodeFrom], $.nodeData[nodeTo]].forEach(node => {
+        row.appendChild(document.createElement("td")).textContent = node.ip || "";
+        row.appendChild(document.createElement("td")).textContent = node.name || "";
+        row.appendChild(document.createElement("td")).textContent = indexFromName || "";
+    });
+    
+	if ($.customData) {
+        $.customData.forEach(custom => {
+            row.appendChild(document.createElement("td")).textContent = extra && extra[custom] || "";
+        });
+	};
+	
+	row.dataset.id = id;
+	
+	return row;
+}
+
+function onSave() {
+    const data = [];
+    var record = [];
+
+    [].forEach.call($.header.children, function (col) {
+        record.push(col.textContent);
+    });
+
+    data[0] = record.join(",");
+
+    [].forEach.call($.list.children, function (row) {
+        record = [];
+
+        [].forEach.call(row.children, function (col) {
+            record.push(col.textContent);
+        });
+
+        data.push(record.join(","));
+    });
+
+    ITAhM.util.download(new Blob(["\ufeff", data.join("\n")] ,{
+		type: "text/csv;charset=utf-8;"
+	}), "line.csv");
+}
+
+function count() {
+	var count = 0;
+
+	[].forEach.call($.list.children, function (row) {
+		if (row.offsetHeight > 0) {
+			count++;
+		}
+	});
+
+	return count;
+}
+
+function onSort(e) {
+	const
+		ascending = this.classList.toggle("ascending"),
+		df = document.createDocumentFragment();
+	var order = 0;
+
+	this.classList.add("sorted");
+
+	for (let e=this; e=e.previousElementSibling; order++);
+
+	[].slice.call($.list.children).sort(
+		function (a, b) {
+			const
+				ipA = a.children[order].textContent,
+				ipB = b.children[order].textContent;
+			
+			if (ipA && ipB) {
+				return (ascending? 1: -1) *(IP2Int(ipA) - IP2Int(ipB));
+			}
+			else if (ipB) {
+				return ascending? 1: -1;
+			}
+			else if (ipA) {
+				return ascending? -1: 1;
+			}
+			else {
+				return 0;
+			}
+		}).forEach(function (e) {
+			df.appendChild(e);
+		});
+
+	$.list.appendChild(df);
+}
+
+function onSearch (e) {
+    e.preventDefault();
+    
+    document.body.classList.add("loading", "keyword");
+
+    const keyword = $.form.elements["keyword"].value;
+
+    if (!keyword) {
+        return $.form.reset();
+
+        return;
+    }
+
+    const df = document.createDocumentFragment();
+    
+    for (let row, cols; row = $.list.firstElementChild;) {
+        cols = row.children;
+
+        df.appendChild(row);
+
+        for (var i=0, length=cols.length; i<length; i++) {
+            row.classList.remove("keyword");
+
+            if (cols[i].textContent.indexOf(keyword) !== -1) {
+                row.classList.add("keyword");
+                
+                break;
+            }
+        }
+    }
+    
+    $.list.appendChild(df);
+
+    document.body.classList.remove("loading");
+
+    document.getElementById("count").textContent = count();
+}
+
+function onReset(e) {
+    const df = document.createDocumentFragment();
+
+    document.body.classList.add("loading");
+    
+    for (let row; row = $.list.firstElementChild;) {
+        df.appendChild(row).classList.remove("keyword");
+    }
+
+    document.body.classList.remove("keyword");
+
+    $.list.appendChild(df);
+
+    document.body.classList.remove("loading");
+
+    document.getElementById("count").textContent = count();
+}
+    
+function showMessage(xhr) {
+    switch (xhr.status) {
+    case 401:
+        alert("Notice!\n\n"+ "세션 만료.");
+
+        break;
+    default:
+        alert(`Error!\n\n오류코드 ${xhr.status}.`);
+    }
+
+    try {
+        console.log(JSON.parse(xhr.responseText).error);
+    } catch (e) {}
+}
+		</script>
+		
+	</head>
+	
+	<body class="loading">
+        <header>
+            <nav>
+                <i id="count"></i>
+                <span class="glyph" id="export" title="CSV 내보내기">&#xf019;</span>
+            </nav>
+            <form>
+                <input type="text" name="keyword" placeholder="Keyword">
+                <input type="submit" value="&#xf002; 찾기">
+                <input type="reset" value="&#xf2f9; 초기화">
+            </form>
+        </header>     
+        <main>
+			<table>
+                <colgroup>
+                    <col width="200">
+                    <col>
+                    <col width="200">
+                    <col width="200">
+                    <col>
+                    <col width="200">
+                </colgroup>
+                <thead>
+                    <tr id="header">
+                        <th id="ip1" class="sort">IP</th>
+                        <th>Name</th>
+                        <th>Interface</th>
+                        <th id="ip2" class="sort">IP</th>
+                        <th>Name</th>
+                        <th>Interface</th>
+                    </tr>
+			    </thead>
+                <tbody id="list"></tbody>
+            </table>
+        </main>
+		
+		<div class="bg_loading"></div>
+		
+		<script src="/js/ITAhM.js"></script>
+		<script src="/js/object.js"></script>
+		<script src="/js/request.js"></script>
+		<script>
+
+const $ = {
+        request: new Request(),
+        list: document.getElementById("list"),
+        header: document.getElementById("header"),
+        form: document.querySelector("form")
+    };
+
+document.getElementById("export").onclick = onSave;
+document.getElementById("ip1").onclick = onSort;
+document.getElementById("ip2").onclick = onSort;
+
+
+$.form.onsubmit = onSearch;
+$.form.onreset =  onReset;
+
+function initNode() {
+    switch(this.status) {
+    case 200:
+        $.nodeData = JSON.parse(this.responseText);
+            
+        initList();
+        
+        break;
+    default:
+        showMessage(this);
+    }
+}
+
+function initLink() {
+    switch(this.status) {
+    case 200:
+        $.linkData = JSON.parse(this.responseText);
+        
+        $.request.execute({
+            command: "get",
+            target: "node"
+        }, initNode);
+
+        break;
+    default:
+        showMessage(this);
+    }
+}
+
+function initSetting() {
+    switch(this.status) {
+    case 200:
+        const
+            df = document.createDocumentFragment(),
+            customs = JSON.parse(this.responseText).customLink;
+        
+        if (customs) {
+            $.customData = customs.split(",");
+        
+            $.customData.forEach(function (custom) {
+                df.appendChild(document.createElement("th")).textContent = custom;
+            });
+            
+            $.header.appendChild(df);
+        }
+    case 204:
+        $.request.execute({
+            command: "get",
+            target: "link"
+        }, initLink);
+
+        break;
+    default:
+        showMessage(this);
+    }
+}
+
+$.request.execute({
+    "command": "get",
+    "target": "setting"
+}, initSetting);
+
+        </script>
+	
+	</body>
+	
+</html>

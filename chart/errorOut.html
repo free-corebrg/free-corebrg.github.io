@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<meta http-equiv="Cache-Control" content="No-Cache">
+		
+		<title>ITAhM</title>
+		
+		<style>
+		
+@import "/css/itahm.css";
+
+body {
+	position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+	margin: 0; padding: 0;
+}
+
+body::before {
+    position: absolute;
+    top: 0; left: 0;
+    content: "송신";
+    color: #f25c66;
+}
+
+iframe {
+	width: 100%; height: 100%;
+	border: none;
+}
+
+div.realtime {
+    position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+    background-color: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#realtime {
+    width: 50%; min-width: 500px;
+    height: 50%; min-height: 300px;
+}
+
+body:not(.realtime) div.realtime {
+    display: none;
+}
+
+body:not(.loading) .bg_loading {
+    display: none;
+}
+
+		</style>
+		<script>
+
+/**
+ * public
+ */
+function getFile() {
+    const rowArray = [];
+    
+    if (window.detail) {
+        rowArray.push("Index,Date,Interface error(cps)");
+
+        const keys = window.chartData.parseData(parent.position, parent.limit);
+        
+        if (keys) {
+            for (let i=0, _i=keys.length, millis, bps; i<_i; i++) {
+                millis = keys[i];
+                
+                bps = window.chartData.getData(millis, keys[i +1]);
+
+                if (bps !== undefined) {
+                    rowArray.push([i, parent.toDateTimeString(Number(millis)), Math.round(bps)].join(","));
+                }
+            }
+        }
+    }
+    else if (window.chartData) {
+        rowArray.push("Index,Date,Max,Avg,Min");
+
+        const summaryData = window.chartData.parseSummary(parent.position, parent.limit);
+
+        if (summaryData) {
+            const blocks = summaryData.keys;
+
+            for (let j=0, _j=blocks.length, keys; j<_j; j++) {
+                keys = blocks[j];
+
+                for (let i=0, _i=keys.length, millis, data; i<_i; i++) {
+                    millis = keys[i];
+
+                    data = window.chartData.getSummary(millis);
+
+                    rowArray.push([i, parent.toDateTimeString(Number(millis)), Math.round(data.max), Math.round(data.avg), Math.round(data.min)].join(","));
+                }
+            }
+        }
+    }
+	
+	ITAhM.util.download(new Blob([rowArray.join("\n")] ,{
+		type: "text/csv;charset=utf-8;"
+	}), "chart_throughput_out.csv");
+}
+
+function realtime(realtime) {
+    if (realtime) {
+        document.getElementById("realtime").contentWindow.location.href = "/chart/realtime.html";
+
+        document.body.classList.add("realtime");
+    } else {
+        document.body.classList.remove("realtime");
+
+        document.getElementById("realtime").contentWindow.location.replace("about:blank");
+    }
+}
+
+function putRealtimeValue(value) {
+    const timestamp = new Date();
+
+    if (window.lastRealtimeValue) {
+        try {
+            window.realtimeObj.data.put((value - window.lastRealtimeValue.value) / (timestamp - window.lastRealtimeValue.timestamp));
+
+            document.getElementById("realtime").contentWindow.draw(realtimeObj);
+        } catch (e) {}
+    }
+
+    window.lastRealtimeValue = {
+        timestamp: timestamp,
+        value: value
+    };
+}
+
+function showMessage(xhr) {
+    switch (xhr.status) {
+    case 401:
+        alert("Notice!\n\n"+ "세션 만료.");
+
+        break;
+    default:
+        alert(`Error!\n\n오류코드 ${xhr.status}.`);
+    }
+
+    try {
+        console.log(JSON.parse(xhr.responseText).error);
+    } catch (e) {}
+}
+
+		</script>
+	</head>
+	
+	<body class="loading">
+        <iframe id="chart"></iframe>
+        <div class="realtime">
+            <iframe id="realtime"></iframe>
+        </div>
+        <div class="bg_loading"></div>
+        
+		<script src="/js/ITAhM.js"></script>	
+        <script src="/js/object.js"></script>
+        <script src="/js/request.js"></script>
+		<script>
+
+const $ = {
+        request: new Request()
+    };
+
+var
+    realtimeObj = {
+        toString: parent.toString,
+        file: "chart_throughput_out_realtime.csv"
+    },
+    chartData = new parent.ChartData(),
+    lastRealtimeValue;
+
+document.getElementById("realtime").onload = function (e) {
+    if (this.contentWindow.location.protocol === "http:") {
+        window.realtimeObj.data = new this.contentWindow.RealtimeData();
+    }
+};
+
+(chartFrame => {
+    chartFrame.onload = function (e) {
+        const date = new Date(parent.position);
+
+        this.contentWindow.initialize(
+            window.chartData,
+            parent.position,
+            parent.limit,
+            parent.max,
+            "#f25c66",
+            parent.toString,
+            window.detail = (date.setDate(date.getDate() +1) == parent.limit));
+    };
+
+    /**
+     * public
+     */
+    window.draw = () => {
+        chartFrame.contentWindow.location.reload();
+    };
+
+    function postRequest(dateArray, onProgress) {
+        const date = dateArray.pop();
+
+        if (date) {
+            $.request.execute({
+                command: "get",
+                target: "resource",
+                id: Number(window.sessionStorage.getItem("node_id")),
+                index: Number(window.sessionStorage.getItem("index")),
+                oid: "1.3.6.1.2.1.2.2.1.20",
+                date: date
+            }, function () {
+                switch (this.status) {
+                case 200:
+                    onProgress(date, JSON.parse(this.responseText));
+
+                    postRequest(dateArray, onProgress);
+                    break;
+                default:
+                    showMessage(this);
+                }
+            });
+        }
+    }
+
+    function initialize() {
+        const
+            date = new Date(Number(window.sessionStorage.getItem("start"))),
+            dateArray = [];
+
+        var initialized = false;
+
+        for (let millis = date.setHours(0, 0, 0, 0), end = Number(window.sessionStorage.getItem("end"));
+            millis < end;
+            millis = date.setDate(date.getDate() +1)) {
+            dateArray.push(millis);
+        }
+        
+        postRequest(dateArray, (date, chartData) => {
+            window.chartData.unshift(date, chartData);
+
+            if (!initialized) {
+                document.body.classList.remove("loading");
+
+                chartFrame.src = "/chart/base.html";
+
+                initialized = true;
+            }
+        });
+    }
+
+    initialize();
+})(document.getElementById("chart"));
+
+		</script>
+	
+	</body>
+	
+</html>

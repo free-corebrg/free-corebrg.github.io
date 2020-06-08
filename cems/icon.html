@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>icon @ ITAhM</title>
+		
+		<style>
+@import "/css/style.css";
+@import "/css/fa.css";
+
+body {
+	padding: 1em; margin: 0;
+}
+
+h1 {
+	font-size: 20px;
+    color: #4d525a;
+	text-shadow: 0 2px 2px #ddd;
+}
+
+header {
+	text-align: right;
+}
+
+#list {
+	list-style: none;
+	padding: 3px;
+    margin: 0;
+    position: relative;
+}
+
+.icon {
+	padding: 20px;
+	margin: 5px;
+	width: 64px;
+	display: inline-block;
+	border: 1px solid transparent;
+}
+
+.icon> div {
+	width: 64px; height: 64px;
+	overflow: hidden;
+}
+
+.icon> span {
+	display: block;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	text-align: center;
+}
+
+.icon:hover {
+	cursor: pointer;
+	box-shadow: 0 6px 6px -4px #333;
+	background-color: #ddd;
+	transform: translate(0, -2px);
+}
+
+.icon:active {
+    box-shadow: inset 0 3px 5px rgba(0,0,0,0.125);
+    transform: none;
+}
+
+.icon:hover> div> img {
+	transform: scale(1.3); 
+}
+
+.group {
+	margin: 20px 0;
+}
+
+.group> ul {
+	padding: 20px;
+	display: flex;
+	flex-wrap: wrap;
+	list-style: none;
+	background-color: #fdfdfd;
+	box-shadow: 0 8px 10px -4px #000;
+	color: #000;
+}
+
+nav {
+    position: fixed; top: 1em; right: 1em;
+    font: 2em "Font Awesome 5 Free";
+    user-select:none;
+}
+
+.button {
+	display:inline-block;
+    cursor: pointer;
+}
+
+.button:hover{
+    transform: translateY(-2px);
+    text-shadow: 0 2px 2px #dddddd;
+}
+
+.button:active{
+    transform: none;
+}
+
+body:not(.root) .root,
+.layout {
+    display: none;
+}
+
+		</style>
+        <script>
+        
+function onSelectIcon(type) {
+	top.showDialog(`cems/dialog/icon.html?type=${type}`);
+}
+
+function createGroup(name) {
+	var group = $.group.cloneNode(true);
+	
+	group.children[0].textContent = name;
+	
+	return group;
+}
+
+function createIcon(src, label) {
+	var icon = $.icon.cloneNode(true);
+	
+	icon.querySelector("img").src = src;
+	icon.children[1].textContent = label;
+	
+	return icon;
+}
+
+function initIcon(iconData) {
+	var df = document.createDocumentFragment(),
+		icon, groupName, groupElement, labelElement,
+		map = {}, span, clone;
+	
+	
+	for (let type in iconData) {
+		icon = iconData[type];
+		
+		groupName = icon.group;
+		
+		groupElement = map[groupName];
+		
+		if (!groupElement) {
+			groupElement = document.createElement("ul");
+			
+			df.appendChild(createGroup(groupName)).appendChild(groupElement);
+			
+			map[groupName] = groupElement;
+		}
+		
+		groupElement.appendChild(createIcon(icon.src, type)).onclick = e => onSelectIcon(type);
+	}
+	
+	return df;
+}
+
+function showMessage(xhr) {
+    switch (xhr.status) {
+    case 401:
+        alert("Notice!\n\n"+ "세션 만료.");
+
+        break;
+    default:
+        alert(`Error!\n\n오류코드 ${xhr.status}.`);
+    }
+
+    try {
+        console.log(JSON.parse(xhr.responseText).error);
+    } catch (e) {}
+}
+
+        </script>
+	</head>
+	
+	<body class="loading">
+        <ul id="list"></ul>
+        <nav>
+            <span id="add" title="아이콘 추가" class="root button">&#xf055;</span>
+        </nav>
+		<div class="layout">
+			<ul>
+				<li class="group">
+					<h1></h1>
+				<li class="icon">
+					<div>
+						<img width="64" height="64">
+					</div>
+					<span></span>
+			</ul>
+		</div>
+
+		<div class="bg_loading"></div>
+        
+        <script src="/js/ITAhM.js"></script>
+        <script src="/js/icon.js"></script>
+        <script src="/js/request.js"></script>
+		<script>
+
+const $ = {
+        request: new Request(),
+        icon: document.querySelector(".icon"),
+        group: document.querySelector(".group"),
+        iconData: ITAhM.iconData
+    };
+
+if (top.account.level === 0) {
+    document.body.classList.add("root");
+}
+
+document.getElementById("add").onclick = e => {
+    top.showDialog("/cems/dialog/icon.html");
+};
+
+$.request.execute({
+    command: "get",
+    target: "icon"
+}, function () {
+    switch(this.status) {
+    case 200:
+        const iconData = JSON.parse(this.responseText);
+
+        for (let type in iconData) {
+            $.iconData[type] = iconData[type];
+        }
+
+    case 204:
+        document.getElementById("list").appendChild(initIcon($.iconData));
+
+        document.body.classList.remove("loading");
+
+        break;
+    default:
+        showMessage(this);
+    }
+});
+
+		</script>
+	
+	</body>
+	
+</html>

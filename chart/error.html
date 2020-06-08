@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<meta http-equiv="Cache-Control" content="No-Cache">
+		
+		<title>ITAhM</title>
+		
+		<style>
+		
+@import "/css/itahm.css";
+@import "/css/glyphicon.css";
+
+body {
+	position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+	margin: 0; padding: 0;
+	display: flex;
+	flex-direction: column;
+	color: #fff;
+    background-color: #424242;
+}
+
+iframe {
+    width: 100%; height: 100%;
+    margin: 0; padding: 0;
+    border: none;
+}
+
+h2 {
+	text-align: center;
+    margin: 0;
+    padding: 0.5em;
+    background-color: #777;
+    text-shadow: 0 2px 3px #000;
+}
+
+.legend {
+    line-height: 2em;
+    display: flex;
+    justify-content: space-between;
+}
+
+.legend .critical input,
+.legend .critical span  {
+    height: 100%;
+    box-sizing: border-box;
+}
+
+/*button glyphicon*/
+.glyph {
+    display: inline-block;
+    color: #fff;
+    vertical-align: middle;
+    position: relative;
+    cursor: pointer;
+    width: 7em;
+}
+
+.glyph::before,
+.glyph::after {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: absolute;
+}
+
+.glyph::before {
+    font-family: "Glyphicons Halflings";
+    background: rgba(0,0,0,0.15);
+    top: 0; bottom: 0; left: 0; width: 3em;
+    content: "\e146";
+}
+
+.glyph::after {
+    top: 0; right: 0; bottom: 0; left: 3em;
+    content: "설정";
+}
+
+.glyph {
+    background-color: #f0ad4e;;
+    border-color: #eea236;
+}
+
+.glyph:hover,
+.glyph:focus {
+    background-color: #ed9c28;
+    border-color: #d58512;
+}
+
+.glyph:active {
+    box-shadow: inset 0 3px 5px rgba(0,0,0,0.125);
+}
+
+body:not(.root) form {
+    display: none;
+}
+
+        </style>
+        
+        <script src="/js/snmp.js"></script>
+		<script>
+
+function ChartData() {
+    this.initialize(arguments);
+}
+
+ChartData.prototype = {
+    initialize: function(args) {
+        this.data = {};
+        this.index = {};
+        this.summary = {};
+        this.timeStampArray = [];
+    },
+    unshift: function (dateMillis, data) {
+        const
+            dateKey = String(dateMillis),
+            timeStampArray = Object.keys(data).sort();
+        var
+            date,
+            next,
+            hour,
+            values = [];
+
+        this.data = Object.assign(this.data, data);
+        
+        this.timeStampArray = timeStampArray.concat(this.timeStampArray);
+
+        timeStampArray.forEach((key, i) => {
+            const millis = Number(key);
+
+            if (i ==0) {
+                this.index[dateKey] = key;
+
+                date = new Date(millis);
+                hour = date.setMinutes(0, 0, 0);
+                next = date.setHours(date.getHours() +1);
+            }
+            
+            while (true) {
+                if (millis < next) {
+                    const key2 = timeStampArray[i +1];
+
+                    if (key2) {
+                        let c = (Number(data[key2]) - Number(data[key])) *8000 / (Number(key2) - millis);
+
+                        if (c >= 0) {
+                            values.push(c);   
+                        }
+                    }
+
+                    break;
+                }
+                else {
+                    if (values.length > 0) {
+                        this.summary[String(hour)] = {
+                            max: Math.max.apply(undefined, values),
+                            min: Math.min.apply(undefined, values),
+                            avg: values.reduce((a, b) => a + b) / values.length
+                        }
+                    }
+
+                    hour = next;
+                    next = date.setHours(date.getHours() +1);
+
+                    values = [];
+                }
+            }
+        });
+        
+        if (values.length > 0) {
+            this.summary[String(hour)] = {
+                max: Math.max.apply(undefined, values),
+                min: Math.min.apply(undefined, values),
+                avg: values.reduce((a, b) => a + b) / values.length
+            }
+        }
+    },
+    parseSummary: function (start, end) {
+        var resultKeyArray = [],
+            blockKeyArrary = [],
+            date = new Date(start),
+            mills = date.setMinutes(0, 0, 0),
+            value, high, low, max = [], min = [];
+        
+        do {
+            value = this.summary[String(mills)];
+            
+            if (value) {
+                blockKeyArrary.push(mills);
+                
+                max.push(value.max);
+                min.push(value.min);
+            }
+            else if (blockKeyArrary.length > 0){
+                resultKeyArray.push(blockKeyArrary);
+                
+                blockKeyArrary = [];
+            }
+
+            mills = date.setHours(date.getHours() +1);
+        } while (mills < end);
+        
+        if (blockKeyArrary.length > 0) {
+            resultKeyArray.push(blockKeyArrary);
+        }
+        
+        high = Math.max.apply(undefined, max);
+        low = Math.min.apply(undefined, min);
+        
+        if (high === low) {
+            high++;
+            low--;
+        }
+        
+        return resultKeyArray.length > 0? {
+            high: high,
+            low: low,
+            keys: resultKeyArray
+        }: undefined;
+    },
+    getSummary: function (millis) {
+        return this.summary[String(millis)];
+    },
+    parseData: function (start, end) {
+        const resultKeyArray = [];
+        var index = this.timeStampArray.indexOf(this.index[String(start)]);
+        
+        if (index < 0) {
+            return;
+        }
+
+        for (let millis = this.timeStampArray[index++]; millis < end; millis = this.timeStampArray[index++]) {
+            resultKeyArray.push(millis);
+        }
+
+        return resultKeyArray.length > 0? resultKeyArray: undefined;
+    },
+    /**
+    * @param millis string
+    * @param nextMillis string
+    */
+    getData: function (millis, nextMillis) {
+        if (!nextMillis) {
+            return;
+        }
+        
+        const
+            errs1 = Number(this.data[millis]),
+            errs2 = Number(this.data[nextMillis]);
+
+        if (errs2 < errs1) {
+            return;
+        }
+        
+        return  (errs2 - errs1) *1000 / (Number(nextMillis) - Number(millis));
+    }
+};
+
+function toDateTimeString(millis) {
+    var
+        date = new Date(millis),
+        year = date.getFullYear(), 
+        month = date.getMonth() + 1,
+        day  = date.getDate(),
+        h = date.getHours(),
+        m = date.getMinutes(),
+        s = date.getSeconds();
+    
+    return year +"-"+ (month > 9? "": "0") + month +"-"+ (day > 9? "": "0") + day +" "
+        + (h > 9? "": "0") + h +":"+ (m > 9? "": "0") + m +":"+ (s > 9? "": "0") + s;
+}
+
+/**
+ * public
+ */
+ function getFile() {
+    document.getElementById("chart_in").contentWindow.getFile();
+    document.getElementById("chart_out").contentWindow.getFile();
+}
+
+
+function realtime(realtime) {
+    document.getElementById("chart_in").contentWindow.realtime(realtime);
+    document.getElementById("chart_out").contentWindow.realtime(realtime);
+
+    if (realtime) {
+        window.timer = window.setTimeout(postRealtimeRequest);
+    } else if (window.timer !== undefined) {
+        clearTimeout(window.timer);
+
+        window.timer = undefined;
+    }
+}
+
+function postRealtimeRequest() {
+    $.request.execute({
+        command: "get",
+        target: "node",
+        id: Number(window.sessionStorage.getItem("node_id")),
+        resource: true
+    }, function () {
+        switch (this.status) {
+        case 200:
+            const
+                resourceData = JSON.parse(this.responseText).resource,
+                index = window.sessionStorage.getItem("index");
+
+            document.getElementById("chart_in").contentWindow
+                .putRealtimeValue(Number(resourceData[index]["1.3.6.1.2.1.2.2.1.14"]));
+            document.getElementById("chart_out").contentWindow
+                .putRealtimeValue(Number(resourceData[index]["1.3.6.1.2.1.2.2.1.20"]));
+            break;
+        default:
+            console.log(this.responseText && JSON.parse(this.responseText).error);
+        }
+
+        if (window.timer !== undefined) {
+            window.timer = window.setTimeout(postRealtimeRequest, INTERVAL);
+        }
+    });
+}
+
+function draw (position, limit) {
+    window.position = position;
+    window.limit = limit;
+
+    document.getElementById("chart_in").contentWindow.draw();
+    document.getElementById("chart_out").contentWindow.draw();
+}
+function toString(value) {
+    return value.toFixed(0) +"cps"
+}
+
+function showMessage(xhr) {
+    switch (xhr.status) {
+    case 401:
+        alert("Notice!\n\n"+ "세션 만료.");
+
+        break;
+    default:
+        alert(`Error!\n\n오류코드 ${xhr.status}.`);
+    }
+
+    try {
+        console.log(JSON.parse(xhr.responseText).error);
+    } catch (e) {}
+}
+
+		</script>
+	</head>
+	
+	<body class="loading">
+
+		<header>
+            <h2>Interface Error: <i>"</i> <span id="if_name"></span> <i>"</i></h2>
+            <div class="legend">
+                <form class="critical" title="임계 설정 해제시 0 입력">
+                    <span>임계</span>
+                    <input id="limit" type="number" min="0" max="100" required>
+                    <span title="Count Per Seconds">CPS</span>
+                    <span class="glyph"></span>
+                </form>
+            </div>
+		</header>
+        <iframe id="chart_in"></iframe>
+        <iframe id="chart_out"></iframe>
+		<script src="/js/ITAhM.js"></script>
+        <script src="/js/object.js"></script>
+        <script src="/js/request.js"></script>
+		<script>
+
+const
+    $ = {
+        request: new Request()
+    },
+    INTERVAL = 5000;
+var timer;
+
+if (top.account.level == 0) {
+    document.body.classList.add("root");
+}
+
+window.position = Number(window.sessionStorage.getItem("position"));
+window.limit = Number(window.sessionStorage.getItem("limit"));
+
+document.querySelector("form.critical").onsubmit = 
+document.querySelector(".glyph").onclick = function (e) {
+    e.preventDefault();
+
+    const
+        request = {
+            command: "set",
+            target: "critical",
+            id: Number(window.sessionStorage.getItem("node_id")),
+            index: window.sessionStorage.getItem("index"),
+            limit: Number(document.getElementById("limit").value || "0")
+        },
+        oid = [ITAhM.snmp.oid.ifInErrors, ITAhM.snmp.oid.ifOutErrors];
+
+    function onResponse () {
+        switch (this.status) {
+            case 200:
+                request.oid = oid.pop();
+
+                if (request.oid) {
+                    $.request.execute(request, onResponse);
+                } else {
+                    alert("Information.\n\n임계를 설정했습니다.");
+                }
+                
+                break;
+
+            default:
+                showMessage(this);
+        }
+    }
+
+    request.oid = oid.pop();
+
+    $.request.execute(request, onResponse);
+};
+
+function initCritical() {
+    $.request.execute({
+        command: "get",
+        target: "critical",
+        id: Number(window.sessionStorage.getItem("node_id")),
+        index: window.sessionStorage.getItem("index"),
+        oid: ITAhM.snmp.oid.ifInErrors
+    }, function () {
+        switch (this.status) {
+            case 200:
+                document.getElementById("limit").value = JSON.parse(this.responseText).limit;
+                
+                document.getElementById("chart_in").src="/chart/errorIn.html";
+                document.getElementById("chart_out").src="/chart/errorOut.html";
+
+                break;
+            default:
+                showMessage(this);
+        }
+    });
+}
+
+$.request.execute({
+    command: "get",
+    target: "node",
+    id: Number(window.sessionStorage.getItem("node_id")),
+    resource: true
+}, function () {
+    switch (this.status) {
+    case 200:
+        const
+            nodeData = JSON.parse(this.responseText),
+            index = window.sessionStorage.getItem("index");
+        
+        if (!("resource" in nodeData) ||
+            !(index in nodeData.resource) ||
+            !((name) => {
+                document.getElementById("if_name").textContent = name || "";
+
+                initCritical();
+
+                return true;
+            })(nodeData.resource[index]["1.3.6.1.2.1.2.2.1.2"])) {
+            
+            alert ("Error!\n\n노드가 차트를 제공하지 않습니다.");
+
+            parent.location.href = window.sessionStorage.getItem("previous");
+
+            return;
+        }
+        
+        break;
+    default:
+        showMessage(this);
+    }
+});
+		</script>
+	
+	</body>
+	
+</html>

@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<meta http-equiv="Cache-Control" content="no-cache">
+		
+		<title>dialog</title>
+		
+		<style>
+@import "/css/style.css";
+@import "/css/fa.css";
+
+body {
+	position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	background-color: rgba(0, 0, 0, .8);
+}
+
+input,
+select {
+    font-family: "맑은 고딕", Arial, Tahoma;
+}
+
+main {
+	width: 300px;
+	padding: 20px;
+	background-color: #fff;
+	position: relative;
+}
+
+h2 {
+	background-color: #0084ff;
+	padding: 10px; margin: 0;
+    color: #fff;
+    text-shadow: 0 2px 3px #000;
+}
+
+form {
+    position: relative;
+}
+
+.table {
+	border: 1px solid #aaa;
+	padding: 1em;
+	margin: 1em 0;
+}
+
+.table ul {
+	list-style: none;
+	padding: 0; margin: 3px 0;
+	display: flex;
+	align-items: center;
+}
+
+.table li {
+	flex: 1;
+}
+
+.table li:first-child {
+	padding: .5em;
+	text-align: right;
+}
+
+.table li:last-child {
+	flex: 3;
+}
+
+.table li input[type="text"],
+.table li select {
+	padding: .5em;
+	width: 100%;
+	box-sizing: border-box;
+}
+
+footer {
+	display: flex;
+}
+
+footer> input {
+    font-family: "Font Awesome 5 Free";
+    font-weight: bold;
+	flex: 1;
+	/*border-radius: 1.2em;
+	background-color: #0084ff;
+	color: #fff;
+	border: .2em solid transparent;*/
+	padding: .5em;
+}
+
+#close {
+    font-family: "Font Awesome 5 Free";
+    display: block;
+    float: right;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+#close:hover {
+    transform: scale(1.2);
+}
+
+.bg_loading {
+    position: absolute;
+}
+
+		</style>
+		
+		<script>
+
+function selectMaker(maker) {
+    const
+        df = document.createDocumentFragment(),
+        select = document.querySelector("select[name=name]"),
+        map = modelData[maker];
+
+    for (let child; child = select.firstChild;) {
+        select.removeChild(child);
+    }
+
+    for (let name in map) {
+        df.appendChild(document.createElement("option")).text = name;
+    }
+
+    select.appendChild(df);
+
+    select.selectedIndex = -1;
+}
+
+function showMessage(xhr) {
+    switch (xhr.status) {
+    case 401:
+        alert("Notice!\n\n"+ "세션 만료.");
+
+        break;
+    default:
+        alert(`Error!\n\n오류코드 ${xhr.status}.`);
+    }
+
+    try {
+        console.log(JSON.parse(xhr.responseText).error);
+    } catch (e) {}
+}
+
+		</script>
+	</head>
+	
+	<body class="loading">
+	
+		<main>
+			<h2>
+                <span  id="close" title="대화창 닫기">&#xf00d;</span>
+				장비 정보
+            </h2>
+            <form>
+                <div class="table">
+                    <ul>
+                        <li>제조사</li>
+                        <li>
+                            <select name="maker" required></select>
+                        </li>
+                    </ul>
+                    <ul>
+                        <li>모델</li>
+                        <li>
+                            <select name="name" required></select>
+                        </li>
+                    </ul>
+                    <ul>
+                        <li>랙</li>
+                        <li>
+                            <select name="rack" required></select>
+                        </li>
+                    </ul>
+                    <ul>
+                        <li>위치 (Unit)</li>
+                        <li>
+                            <select name="position" required></select>
+                        </li>
+                    </ul>
+                </div>
+                
+                <footer>
+                    <input type="submit" value="&#xf0c7; 저장" disabled>
+                </footer>
+
+                <div class="bg_loading"></div>
+			</form>
+		</main>
+        
+        <script src="/js/request.js"></script>
+        <script src="/dc/model.js"></script>
+		<script>
+
+const
+    search = new URLSearchParams(window.location.search),
+    $ = {
+        request: new Request(),
+        rackID: Number(search.get("rack")) || undefined,
+        rackName: search.get("name") || undefined,
+        devID: Number(search.get("device")) || undefined,
+        position: Number(search.get("position")) || undefined,
+        limit: Number(search.get("limit")) || undefined,
+    };
+
+if (top.account.level == 0) {
+    document.querySelector("input[type=submit]").disabled = false;
+}
+
+document.addEventListener("keydown", function (e) {
+	switch (e.keyCode) {
+	case 27:
+        top.closeDialog();
+		
+		break;
+	}
+});
+
+document.getElementById("close").onclick = e => top.closeDialog();
+
+document.querySelector("form").onsubmit = function (e) {
+    e.preventDefault();
+
+    document.body.classList.add("loading");
+
+    $.request.execute({
+        command: "set",
+        target: "location",
+        node: $.devID,
+        location: {
+            maker: this.elements["maker"].value,
+            name: this.elements["name"].value,
+            rack: Number(this.elements["rack"].value),
+            position: Number(this.elements["position"].value)
+        }
+    }, function () {
+        switch(this.status) {
+        case 200:
+            top.closeDialog(true);
+
+            break;
+        default:
+            showMessage(this);
+        }
+    });
+};
+
+document.querySelector("select[name=name]").onchange = function (e) {
+    const maker = document.querySelector("select[name=maker]");
+
+    try {
+        if (modelData[maker.value][this.value].unit > $.limit) {
+            throw "";
+        }
+    } catch (e) {
+        alert("Error!\n\n공간이 부족합니다.");
+
+        this.selectedIndex = -1;
+    }
+};
+
+{
+    const
+        df = document.createDocumentFragment(),
+        select = document.querySelector("select[name=maker]");
+
+    for (let maker in modelData) {
+        df.appendChild(document.createElement("option")).text = maker;
+    }
+
+    select.appendChild(df);
+
+    select.selectedIndex = -1;
+
+    select.onchange = function () {
+        selectMaker(this.value);
+    }
+}
+
+{
+    const option = document.createElement("option");
+
+    option.text = $.rackName;
+    option.value = $.rackID;
+
+    document.querySelector("select[name=rack]").appendChild(option);
+}
+
+{
+    const option = document.createElement("option");
+
+    option.text = $.position;
+    option.value = $.position;
+
+    document.querySelector("select[name=position]").appendChild(option);
+}
+
+document.body.classList.remove("loading");
+
+	</script>
+	
+	</body>
+	
+</html>

@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <style>
+
+@import "/css/fa.css";
+
+body {
+    font : 10pt "맑은 고딕", Arial, Tahoma;
+    position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+    padding: 0; margin: 0;
+    display: flex;
+}
+
+main {
+    flex: 1;
+    position: relative;
+}
+
+iframe {
+    width: 100%; height: 100%;
+    border: none;
+}
+
+#dialog {
+	position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+	padding: 0; margin: 0;
+}
+
+nav {
+    position: absolute; top: 5px; right: 5px;
+}
+
+nav >span {
+    font: 20px "Font Awesome 5 Free";
+    border-radius: 50%;
+    display: flex; width: 32px; height: 32px;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 132, 255, 0.5);
+    border-color: #0084ff;
+    color: #ffffff;
+    cursor: pointer;
+}
+
+nav >span:hover {
+    background-color: #0084ff;
+}
+
+aside {
+    position: absolute; top: 0; right: 0; left: 0;
+    padding: 1em;
+    text-align: center;
+    font-weight: bold;
+    color: #fff;
+    pointer-events: none;
+}
+
+#event {
+    cursor: pointer;
+    pointer-events: all;
+}
+
+#event::before,
+#event::after {
+    display: inline-flex; align-items: center; justify-content: center;
+    background-color: #ffa500;
+    border: 1px solid #c46c00;
+    height: 3em;
+    box-sizing: border-box;
+}
+
+#event::before {
+    content: attr(data-count);
+    width: 3em; 
+	border-radius: 50%;
+}
+
+#event::after {
+    content: attr(data-message);
+    padding: 0 1em 0 1em;
+	margin-left: 1em;
+	border-radius: 1.5em 0 0 1.5em;
+}
+
+body:not(.dialog) #dialog,
+body:not(.event) #event,
+body:not(.popup) nav {
+    display: none;
+}
+
+			</style>            
+        </head>
+        
+        <script>
+
+function showDialog(src) {
+    const dialog = document.getElementById("dialog");
+
+    dialog.onload = function () {
+		document.body.classList.add("dialog");
+	};
+
+    dialog.src = src;
+}
+
+function closeDialog(reset) {
+    document.body.classList.remove("dialog");
+    
+    if (reset) {
+        resetDialog();
+    }
+}
+
+function resetDialog() {
+    document.querySelector("iframe").contentWindow.location.reload();
+}
+
+function _preLoadTextures(keys, maker, type, onload) {
+    const name = keys.pop();
+
+    if (name) {
+        const model = modelData[maker][name];
+
+        new THREE.TextureLoader().load(model[type], texture => {
+            model[type] = texture;
+
+            _preLoadTextures(keys, maker, type, onload);
+        });
+    } else {
+        onload();
+    }
+}
+
+function preLoadTextures(keys, onload) {
+    const maker = keys.pop();
+    
+    if (maker) {
+        _preLoadTextures(Object.keys(modelData[maker]), maker, "front", function () {
+            _preLoadTextures(Object.keys(modelData[maker]), maker, "rear", function () {
+                preLoadTextures(keys, onload);
+            });
+        });
+    } else {
+        onload();
+    }
+}
+
+function getModelData() {
+    return modelData;
+}
+
+function onEvent(event) {
+    $.event.dataset.count = (count => {
+        if (isNaN(count)) {
+            return "9+";
+        } else {
+            return ++count > 9? "9+": count;
+        }
+    }) (Number($.event.dataset.count));
+
+    $.event.dataset.message = `${event.name || event.ip || ""} ${event.message}`;
+
+    document.body.classList.add("event");
+}
+
+        </script>
+
+        <body>
+            <main>
+                <iframe id="view"></iframe>
+            </main>
+            <nav>
+                <span id="restore" title="창 복원">
+                    &#xf2d0;
+                </span>
+            </nav>
+            <aside>
+                <span id="event" data-count="0" data-message="No message."></span>
+            </aside>
+            <iframe id="dialog"></iframe>
+
+            <script>
+if (opener) {
+    window.account = opener.account;
+
+    if (opener.onRestore) {
+        document.body.classList.add("popup");
+        
+        document.getElementById("restore").onclick = e => {
+            if (opener && !opener.closed) {
+                opener.onRestore("dc");
+
+                close();
+            } else {
+                alert("Error!\n\n창 복원 오류.");
+            }
+        };
+    }
+} else if (top !== window && top.account) {
+    window.account = top.account;
+
+    document.body.classList.add("frame");
+} else {
+    throw window.location.replace("/warning.html");
+}
+        </script>
+        <script src="/js/request.js"></script>
+        <script src="/js/import/three.js"></script>
+        <script src="/dc/model.js"></script>
+        <script>
+
+const $ = {
+        request: new Request(),
+        event: document.getElementById("event")
+    };
+
+$.event.onclick = e => {
+    document.body.classList.remove("event");
+
+    $.event.dataset.count = 0;
+};
+  
+preLoadTextures(Object.keys(modelData), function () {
+    document.getElementById("view").src = "/dc/view.html";
+});
+
+        </script>
+    </body>
+</html>

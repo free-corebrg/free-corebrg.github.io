@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>dialog</title>
+		
+		<style>
+@import "/css/style.css";
+@import "/css/fa.css";
+
+body {
+	margin: 0; padding: 0;
+	position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	background-color: rgba(0, 0, 0, .8);
+}
+
+form {
+	width: 360px;
+	padding: 20px;
+	background-color: #fff;
+	position: relative;
+}
+
+h2 {
+	margin: 0; padding: 10px;
+	background-color: #0084ff;
+    color: #fff;
+    text-shadow: 0 2px 3px #000;
+}
+
+div.table {
+	margin: 1em 0px;
+}
+
+div.table ul {
+	display: flex;
+	list-style: none;
+	padding: 1px;
+	margin: 0;
+}
+
+div.table li:first-child {
+	flex: none;
+	width: 100px;
+	padding: .5em;
+	text-align: right;
+    background-color: #686160;
+    color: #fff;
+    font-weight: bold;
+}
+
+div.table li:nth-child(2) {
+	flex: 1;
+	background-size: 2em;
+	background-repeat: no-repeat;
+	background-position: center;
+}
+
+div.table li:nth-child(3) {
+	flex: 4;
+}
+
+div.table input[type="text"],
+div.table input[type="number"] {
+	width: 100%;
+	box-sizing: border-box;
+	padding: .5em;
+}
+
+footer {
+	display: flex;
+	margin-top: 1em;
+}
+
+footer> input {
+	flex: 1;
+	border-radius: 1.2em;
+	background-color: #0084ff;
+	color: #fff;
+	border: .2em solid transparent;
+	padding: .5em;
+}
+
+footer> input:hover {
+	background-color: #fff;
+	color: #0084ff;
+	border-color: #0084ff;
+}
+
+input[type="checkbox"] {
+	vertical-align: middle;
+}
+
+#close {
+    font-family: "Font Awesome 5 Free";
+    display: block;
+    float: right;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+#close:hover {
+    transform: scale(1.2);
+}
+
+.bg_loading {
+	position: absolute;
+}
+
+body:not(.removable) input[type=reset] {
+	display: none;
+}
+
+		</style>
+		<script>
+
+function showMessage(xhr) {
+    switch (xhr.status) {
+    case 401:
+        alert("Notice!\n\n"+ "세션 만료.");
+
+        break;
+    default:
+        alert(`Error!\n\n오류코드 ${xhr.status}.`);
+    }
+
+    try {
+        console.log(JSON.parse(xhr.responseText).error);
+    } catch (e) {}
+}
+
+        </script>
+	</head>
+	
+	<body>
+	
+		<form class="loading" autocomplete="off">
+			<h2>
+                <span  id="close" title="대화창 닫기">&#xf00d;</span>
+                아이콘
+            </h2>
+			<div class="table">
+				<ul>
+					<li>타입
+					<li><input type="text" name="type" placeholder="아이콘 타입" required>
+				</ul>
+				<ul>
+					<li>그룹
+					<li><input type="text" name="group" placeholder="아이콘 그룹" required>
+				</ul>
+				<ul>
+					<li>기본 이미지
+					<li></li>
+					<li><input type="text" name="url" placeholder="Image URL" required>
+				</ul>
+				<ul>
+					<li>비활성 이미지
+					<li></li>
+					<li><input type="text" name="disabled" placeholder="Image URL">
+                </ul>
+                <ul>
+					<li>장애 이미지
+					<li></li>
+					<li><input type="text" name="shutdown" placeholder="Image URL">
+				</ul>
+			</div>
+			<footer>
+                <input type="reset" value="초기화" disabled>
+                <input type="submit" value="추가" disabled>
+			</footer>
+			<div class="bg_loading"></div>
+		</form>
+        
+        <script src="/js/request.js"></script>
+		<script>
+
+const $ = {
+        request: new Request()
+    };
+    
+function close() {
+	top.closeDialog(true);
+}
+
+document.addEventListener("keydown", function (e) {
+	switch (e.keyCode) {
+	case 27:
+		close();
+		
+		break;
+	}
+});
+
+document.getElementById("close").onclick = close;
+
+if (top.account.level === 0) {
+	document.querySelector("input[type=reset]").disabled = false;
+	document.querySelector("input[type=submit]").disabled = false;
+}
+
+(function (form) {
+    var opener;
+    
+	form.onreset = function (e) {
+		e.preventDefault();
+	
+		if (!confirm("Confirm.\n\n아이콘 설정을 초기화 하겠습니까?")) {
+			return;
+		}
+        
+        $.request.execute({
+            target: "icon",
+            command: "remove",
+            type: form.elements["type"].value
+        }, function () {
+			switch (this.status) {
+			case 200:
+				opener.location.reload();
+                
+                close();
+
+				break;
+			default:
+				showMessage(this);
+			}
+
+			document.body.classList.remove("loading");
+		});
+	};
+	
+	form.onsubmit = function (e) {
+		e.preventDefault();
+		
+		$.request.execute({
+            target: "icon",
+            command: document.body.classList.contains("removable")? "set": "add",
+            type: form.elements["type"].value,
+            icon: {
+                type: form.elements["type"].value,
+                group: form.elements["group"].value,
+                src: form.elements["url"].value,
+                disabled: form.elements["disabled"].value || form.elements["url"].value,
+                shutdown: form.elements["shutdown"].value || form.elements["url"].value
+            }
+        }, function () {
+			switch (this.status) {
+			case 200:
+                opener.location.reload();
+                
+                close();
+
+                break;
+            case 409:
+                alert("Error.\n\n명령을 처리하지 못하였습니다.");
+
+                break;
+			default:
+                showMessage(this);
+			}
+
+			document.body.classList.remove("loading");
+		});
+	};
+
+	function drawImage(input, url) {
+		input.parentNode.previousElementSibling.style.backgroundImage = "url("+url+")";
+	}
+
+	window.initialize = function (type, icon) {
+		opener = this;
+
+        if (type) {
+            form.elements["type"].disabled = true;
+
+            document.querySelector("input[type=submit]").value = "수정";
+
+            $.request.execute({
+                command: "get",
+                target: "icon",
+                type: type
+            }, function () {
+                switch(this.status) {
+                case 200:
+                    document.body.classList.add("removable");
+                case 204:
+                    initIcon(type, icon);
+
+                    document.body.classList.remove("loading");
+
+                    break;
+                default:
+                    showMessage(this);
+                }
+            });
+        }
+	};
+
+    function initIcon(type, icon) {
+        form.elements["type"].value = type;
+        form.elements["group"].value = icon.group;
+        form.elements["url"].value = icon.src;
+        form.elements["disabled"].value = icon.disabled || icon.src;
+        form.elements["shutdown"].value = icon.shutdown || icon.src;
+
+        drawImage(form.elements["url"], icon.src);
+        drawImage(form.elements["disabled"], icon.disabled || icon.src);
+        drawImage(form.elements["shutdown"], icon.shutdown || icon.src);
+    }
+
+    (function (delay) {
+        var active;
+
+		form.elements["url"].oninput =
+        form.elements["disabled"].oninput =
+		form.elements["shutdown"].oninput = function (e) {
+			const
+				input = this,
+				start = performance.now();
+			let id;
+			
+			active = id = requestAnimationFrame(function f(t) {
+				if (active != id) {
+					return;
+				}
+
+				if (t - start > delay) {
+					drawImage(input, input.value);
+				}
+				else {
+					requestAnimationFrame(f);
+				}
+			});
+		};
+    })(500);
+    
+}) (document.querySelector("form"));
+
+		</script>
+	
+	</body>
+	
+</html>

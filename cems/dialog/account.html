@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>dialog</title>
+		
+		<style>
+
+@import "/css/style.css";
+@import "/css/fa.css";
+		
+body {
+	margin: 0; padding: 0;
+	position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	background-color: rgba(0, 0, 0, .8);
+}
+
+form {
+	width: 380px;
+	padding: 20px;
+	background-color: #fff;
+	position: relative;
+}
+
+h2 {
+	margin: 0; padding: 10px;
+	background-color: #0084ff;
+    color: #fff;
+    text-shadow: 0 2px 3px #000;
+}
+
+input[type="text"],
+input[type="password"],
+input[type="submit"],
+input[type="reset"],
+select {
+	width: 100%;
+	box-sizing: border-box;
+	padding: .5em;
+}
+
+input[type="checkbox"] {
+	vertical-align: middle;
+}
+
+table {
+    width: 100%;
+	margin: 1em 0;
+}
+
+th {
+    background-color: #686160;
+    color: #fff;
+    text-align: right;
+}
+
+td, th {
+    padding: 3px;
+}
+
+main {
+    position: relative;
+}
+
+footer {
+	display: flex;
+	margin-top: 1em;
+}
+
+footer input {
+    flex: 1;
+    font-family: "Font Awesome 5 Free";
+    font-weight: bold;
+}
+
+#close {
+    font-family: "Font Awesome 5 Free";
+    display: block;
+    float: right;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+#close:hover {
+    transform: scale(1.2);
+}
+
+.bg_loading {
+	position: absolute;
+}
+
+body:not(.root) footer,
+body:not(.edit) input[type=reset] {
+	display: none;
+}
+
+        </style>
+        <script>
+
+function initialize(account) {
+    if (account) {
+        $.form.elements["username"].value = account.username;
+        $.form.elements["username"].disabled = true;
+        $.form.elements["level"].value = account.level;
+        
+        $.password = account.password;
+
+        $.form.elements["password"].required = false;
+        $.form.elements["password2"].required = false;
+        
+        document.body.classList.add("edit");
+    }
+    
+    document.body.classList.remove("loading");
+}
+    
+function onReset (e) {
+    e.preventDefault();
+
+    if (!confirm("Confirm.\n\n계정을 삭제하겠습니까?")) {
+        return;
+    }
+
+    document.body.classList.add("loading");
+
+    new Request().execute({
+        command: "remove",
+        target: "account",
+        username: $.form.elements["username"].value
+    }, function () {
+        switch (this.status) {
+        case 200:
+            top.closeDialog(true);
+
+            document.body.classList.remove("loading");
+
+            break;
+        case 409:
+            alert("Error!\n\n계정 삭제 실패.");
+
+            document.body.classList.remove("loading");
+
+            break;
+        default:
+            showMessage(this);
+        }
+    });
+}
+
+function onSubmit (e) {
+    e.preventDefault();
+    
+    const
+        request = {
+            target: "account",
+            username: $.form.elements["username"].value,
+            account: {
+                username: $.form.elements["username"].value,
+                level: parseInt($.form.elements["level"].value)
+            }
+        };
+        
+    if (document.body.classList.contains("edit")) {
+        // 수정
+        if ($.form.elements["password"].value !== $.form.elements["password2"].value) {
+            if ($.form.elements["password"].value) {
+                alert("Error!\n\n비밀번호가 확인 비밀번호와 일치하지 않습니다.");
+
+                $.form.elements["password2"].select();
+            }
+            else {
+                alert("Error!\n\n비밀번호를 입력하세요.");
+
+                $.form.elements["password"].select();
+            }
+            
+            return;
+        }
+        else if ($.form.elements["password"].value){
+            request.account.password = hex_md5($.form.elements["password"].value);
+        }
+        else {
+            request.account.password = $.password;
+        }
+
+        request.command = "set";
+    }
+    else {
+        // 생성
+        if ($.form.elements["password"].value !== $.form.elements["password2"].value) {
+            alert("Error!\n\n비밀번호가 확인 비밀번호와 일치하지 않습니다.");
+
+            $.form.elements["password2"].select();
+            
+            return;
+        }
+
+        request.command = "add";
+        
+        request.account.password = hex_md5($.form.elements["password"].value);
+    }
+    
+    document.body.classList.add("loading");
+
+    new Request().execute(request, function () {
+        switch (this.status) {
+        case 200:
+            top.closeDialog(true);
+            
+            close();
+
+            document.body.classList.remove("loading");
+
+            break;
+        case 409:
+
+            alert(`Error!\n\n계정 ${request.command == "add"? "추가": "수정"} 실패`);
+
+            document.body.classList.remove("loading");
+
+            break;
+        default:
+            alert(top.getMessage(this.status));
+
+            console.log(this.responseText && JSON.parse(this.responseText).error);
+        }
+    });
+}
+
+function showMessage(xhr) {
+    switch (xhr.status) {
+    case 401:
+        alert("Notice!\n\n"+ "세션 만료.");
+
+        break;
+    default:
+        alert(`Error!\n\n오류코드: ${xhr.status}.`);
+    }
+
+    try {
+        console.log(JSON.parse(xhr.responseText).error);
+    } catch (e) {}
+}
+
+        </script>
+	</head>
+	
+	<body class="loading">
+		
+		<form autocomplete="off">
+            <h2>
+                <span  id="close" title="대화창 닫기">&#xf00d;</span>
+                account
+            </h2>
+            <main>
+                <table>
+                    <tr>
+                        <th>username</th>
+                        <td>
+                            <input type="text" name="username" class="text" required autofocus>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>password</th>
+                        <td>
+                            <input type="password" name="password"
+                                class="text"
+                                placeholder="new password"
+                                required>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>confirm password</th>
+                        <td>
+                            <input type="password" name="password2"
+                                class="text"
+                                placeholder="confirm password"
+                                required>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>level</th>
+                        <td>
+                            <select name="level">
+                                <option value="0">root
+                                <option value="2" selected>user
+                            </select>
+                        </td>
+                    </tr>
+                </table>
+                <i>※ 더이상 Root 레벨 계정이 존재하지 않는 경우 삭제할 수 없습니다.</i>
+                <footer>
+                    <input type="reset" value="&#xf1f8; 삭제">
+				    <input type="submit" value="&#xf0c7; 저장">
+                </footer>
+                <div class="bg_loading"></div>
+            </main>
+		</form>
+
+        <script src="/js/md5.js"></script>
+        <script src="/js/request.js"></script>
+		<script>
+
+const
+    search = new URLSearchParams(window.location.search),
+    $ = {
+        request: new Request(),
+        username: search.get("username") || undefined,
+        form: document.querySelector("form")
+    };
+
+document.addEventListener("keydown", function (e) {
+	switch (e.keyCode) {
+	case 27:
+        top.closeDialog();
+		
+		break;
+	}
+});
+
+document.getElementById("close").onclick = e => top.closeDialog();
+
+if (top.account.level === 0) {
+    $.form.onsubmit = onSubmit;
+    $.form.onreset = onReset;
+
+    document.body.classList.add("root");
+}
+
+if ($.username) {
+    $.request.execute({
+        command: "get",
+        target: "account",
+        username: $.username
+    }, function () {
+        switch (this.status) {
+        case 200:
+            initialize(JSON.parse(this.responseText));
+
+            break;
+        default:
+            showMessage(this);
+        }
+    });
+} else {
+    initialize();
+}
+
+		</script>
+	
+	</body>
+	
+</html>

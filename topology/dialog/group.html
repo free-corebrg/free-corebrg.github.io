@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<meta http-equiv="Cache-Control" content="no-cache">
+		
+		<title>dialog</title>
+		
+		<style>
+@import "/css/style.css";
+@import "/css/fa.css";
+
+body {
+	position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	background-color: rgba(0, 0, 0, .8);
+}
+
+main {
+	width: 320px;
+	padding: 20px;
+	background-color: #fff;
+    position: relative;
+}
+
+form {
+    position: relative;
+}
+
+h2 {
+	margin: 0; padding: 10px;
+	background-color: #0084ff;
+    color: #fff;
+    text-shadow: 0 2px 3px #000;
+}
+
+.table {
+	border: 1px solid #aaa;
+	padding: 1em;
+	margin: 1em 0;
+}
+
+.table ul {
+	list-style: none;
+	padding: 0; margin: 3px 0;
+	display: flex;
+	align-items: center;
+}
+
+.table li {
+	flex: 1;
+}
+
+.table li:first-child {
+	padding: .5em;
+	text-align: right;
+}
+
+.table li:last-child {
+	flex: 3;
+}
+
+.table li input[type="text"],
+.table li select {
+	padding: .5em;
+	width: 100%;
+	box-sizing: border-box;
+}
+
+input[type="checkbox"] {
+	margin: .5em;
+	vertical-align: middle;
+}
+
+table {
+    width: 100%;
+    margin: 1em 0;
+}
+
+th {
+    background-color: #686160;
+    color: #fff;
+    width: 120px;
+}
+
+td, th {
+    padding: 3px;
+}
+
+td >input[type=text],
+td >input[type=number],
+td >select {
+    padding: 0.5em;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.address {
+    font-family: "Font Awesome 5 Free";
+}
+
+.address * {
+    font-family: inherit;
+}
+
+.address::before {
+    display: inline-block;
+    content: "\f00c";
+    color: transparent;
+    font-weight: bold;
+}
+
+.address.valid::before {
+    color: #5cb85c;
+}
+
+#branch:not(:checked) +table {
+    display: none;
+}
+
+footer {
+	display: flex;
+	margin-top: 1em;
+}
+
+footer> input {
+    font-family: "Font Awesome 5 Free";
+	flex: 1;
+	padding: .5em;
+    font-weight: bold;
+}
+
+#close {
+    font-family: "Font Awesome 5 Free";
+    display: block;
+    float: right;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+#close:hover {
+    transform: scale(1.2);
+}
+
+.bg_loading {
+    position: absolute;
+}
+
+body:not(.edit) input[type=reset] {
+	display: none;
+}
+
+		</style>
+		<script>
+
+function showMessage(xhr) {
+    switch (xhr.status) {
+    case 401:
+        alert("Notice!\n\n"+ "세션 만료.");
+
+        break;
+    default:
+        alert(`Error!\n\n오류코드 ${xhr.status}.`);
+    }
+
+    try {
+        console.log(JSON.parse(xhr.responseText).error);
+    } catch (e) {}
+}
+
+        </script>
+	</head>
+	
+	<body class="loading">
+		<main>
+            <h2>
+                <span  id="close" title="대화창 닫기">&#xf00d;</span>
+                그룹
+            </h2>
+            <form autocomplete="off">
+                <table>
+                    <tbody>
+                        <tr>
+                            <th>
+                                이름
+                            </th>
+                            <td>
+                                <input type="text" name="name" placeholder="그룹 이름" autofocus required>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>
+                                타입
+                            </th>
+                            <td>
+                                <select name="type" required></select>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+                <input id="branch" type="checkbox">Branch 등록
+                <table>
+                    <tbody>
+                        <tr>
+                            <th class="address">
+                                주소
+                                <input type="button" name="validate" value="&#xf3c5;" title="주소 위치 검증">
+                            </td>
+                            <td>
+                                <input name="address" type="text">
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>주소 세부</td>
+                            <td>
+                                <input name="subaddr" type="text">
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>연락 번호</td>
+                            <td>
+                                <input name="phone" type="text">
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+                <footer>
+                    <input type="reset" value="&#xf1f8; 삭제" disabled>
+                    <input type="submit" value="&#xf0c7; 저장" disabled>
+                </footer>
+                <div class="bg_loading"></div>
+            </form>
+		</main>
+
+        <script src="/js/ITAhM.js"></script>
+        <script src="/js/icon.js"></script>
+        <script src="/js/request.js"></script>
+        <script src="//dapi.kakao.com/v2/maps/sdk.js?appkey=2d5f1506a806e98b9b51ecb765853bd7&libraries=services"></script>
+		<script>
+
+const
+    search = new URLSearchParams(window.location.search),
+    $ = {
+        request: new Request(),
+        id: Number(search.get("id")) || undefined,
+        base: {},
+        iconData: ITAhM.iconData,
+        form: document.querySelector("form")
+    };
+
+if (top.account.level === 0) {
+	document.querySelector("input[type=submit]").disabled = false;
+	document.querySelector("input[type=reset]").disabled = false;
+}
+
+document.addEventListener("keydown", function (e) {
+	switch (e.keyCode) {
+	case 27:
+    top.closeDialog();
+		
+		break;
+	}
+});
+
+document.getElementById("close").onclick = e => top.closeDialog();
+
+document.getElementById("branch").onclick = function (e) {
+    if (this.checked) {
+        $.branch = {};
+    } else if (confirm("Confirm.\n\n입력한 Branch 정보가 초기화됩니다.\n계속하겠습니까?")) {
+        delete $.branch;
+
+        $.form.elements["address"].value = "";        
+        $.form.elements["subaddr"].value = "";
+        $.form.elements["phone"].value = "";
+    }
+};
+
+$.form.onreset = function (e) {
+    if (!confirm("그룹을 삭제하겠습니까?")) {
+        return;
+    }
+    
+    document.body.classList.add("loading");
+    
+    $.request.execute({
+        command: "remove",
+        target: "node",
+        id: $.id
+    }, function () {
+        switch (this.status) {
+            case 200:
+                reloadOpener();
+
+                break;
+            default:
+                showMessage(this);
+        }
+    });
+};
+
+$.form.onsubmit = function (e) {
+    e.preventDefault();
+
+    const request = {
+        target: "node",
+        node: $.base
+    };
+    
+    document.body.classList.add("loading");
+    
+    if ($.branch) {
+        if (!$.form.elements["address"].value) {
+            document.body.classList.remove("loading");
+
+            return $.form.elements["address"].focus();
+        }
+
+        $.branch.address = $.form.elements["address"].value;
+        $.branch.subaddr = $.form.elements["subaddr"].value;
+        $.branch.phone = $.form.elements["phone"].value;
+    }
+    
+    $.base.name = $.form.elements["name"].value;
+    $.base.type = $.form.elements["type"].value;
+    $.base.branch = $.branch;
+
+    if ($.id) {
+        request.command = "set";
+        request.id = $.id;
+    }
+    else {
+        request.command = "add";
+    }
+
+    $.request.execute(request, function () {
+        switch (this.status) {
+        case 200:
+            top.closeDialog(true);
+
+            break;
+        default:
+            showMessage(this);
+        }
+    });
+};
+
+$.form.elements["validate"].onclick = function (e) {
+    const address = $.form.elements["address"].value;
+
+    if (!address) {
+        return $.form.elements["address"].focus();
+    }
+
+    document.body.classList.add("loading");
+
+    try {
+        const geocoder = new kakao.maps.services.Geocoder();
+
+        geocoder.addressSearch(address, (result, status) => {
+            if (status === kakao.maps.services.Status.OK) {
+                document.body.querySelector(".address").classList.add("valid");
+
+                $.branch.lat = result[0].y;
+                $.branch.lng = result[0].x;
+            } else {
+                document.body.querySelector(".address").classList.remove("valid");
+
+                delete $.branch.lat;
+                delete $.branch.lng;
+
+                alert("Notice.\n\n위치 검증 오류.");
+            }
+
+            document.body.classList.remove("loading");
+        });
+    } catch (e) {
+        alert("Error!\n\n해당 기능을 사용할 수 없음.");
+
+        document.body.classList.remove("loading");
+    }    
+};
+
+function initDialog() {
+    if ($.id) {
+        $.request.execute({
+            command: "get",
+            target: "node",
+            id: $.id
+        }, function () {
+            switch (this.status) {
+            case 200:
+                $.base = JSON.parse(this.responseText);
+                
+                $.form.elements["name"].value = $.base.name || "";
+                $.form.elements["type"].value = $.base.type;
+                
+                if ($.base.branch) {
+                    $.branch = $.base.branch;
+
+                    document.getElementById("branch").checked = true;
+
+                    $.form.elements["address"].value = $.branch.address;
+                    $.form.elements["subaddr"].value = $.branch.subaddr || "";
+                    $.form.elements["phone"].value = $.branch.phone || "";
+
+                    if ("lat" in $.branch && "lng" in $.branch) {
+                        document.body.querySelector(".address").classList.add("valid");
+                    }
+                }
+
+                document.body.classList.add("edit");
+
+                break;
+
+            default:
+                showMessage(this);
+            }
+
+            document.body.classList.remove("loading");
+        });
+    }
+    else {
+        document.body.classList.remove("loading");
+    }
+}
+
+$.request.execute({
+    command: "get",
+    target: "icon"
+}, function () {
+    switch (this.status) {
+    case 200:
+        const
+            iconData = JSON.parse(this.responseText),
+            df = document.createDocumentFragment();
+
+        for (let type in iconData) {
+            $.iconData[type] = iconData[type];
+        }
+
+        for (let type in $.iconData) {
+            if ($.iconData[type].group === "group") {
+                df.appendChild(document.createElement("option")).text = type;
+            }
+        }
+
+        $.form.elements["type"].appendChild(df);
+        $.form.elements["type"].selectedIndex = -1;
+
+        initDialog();
+
+        break;
+
+    default:
+        showMessage(this);
+    }
+});
+
+	</script>
+	
+	</body>
+	
+</html>

@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>dialog</title>
+		
+		<style>
+@import "/css/style.css";
+@import "/css/fa.css";
+
+body {
+	margin: 0; padding: 0;
+	position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	background-color: rgba(0, 0, 0, .8);
+}
+
+form {
+	width: 360px;
+	padding: 20px;
+	background-color: #fff;
+	position: relative;
+}
+
+h2 {
+	margin: 0; padding: 10px;
+	background-color: #0084ff;
+    color: #fff;
+    text-shadow: 0 2px 3px #000;
+}
+
+div.table {
+	margin: 1em 0px;
+}
+
+div.table ul {
+	display: flex;
+	list-style: none;
+	padding: 1px;
+	margin: 0;
+}
+
+div.table li:first-child {
+	flex: none;
+	width: 100px;
+	padding: .5em;
+	text-align: right;
+    background-color: #686160;
+    color: #fff;
+    font-weight: bold;
+}
+
+div.table li:nth-child(2) {
+	flex: 1;
+	background-size: 2em;
+	background-repeat: no-repeat;
+	background-position: center;
+}
+
+div.table li:nth-child(3) {
+	flex: 4;
+}
+
+input[type=text],
+input[type=submit],
+input[type=reset] {
+	width: 100%;
+	box-sizing: border-box;
+	padding: .5em;
+}
+
+footer {
+	display: flex;
+	margin-top: 1em;
+}
+
+footer input {
+    flex: 1;
+    font-family: "Font Awesome 5 Free";
+    font-weight: bold;
+}
+
+#close {
+    font-family: "Font Awesome 5 Free";
+    display: block;
+    float: right;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+#close:hover {
+    transform: scale(1.2);
+}
+
+.bg_loading {
+	position: absolute;
+}
+
+body:not(.root) footer,
+body:not(.edit) input[type=reset] {
+	display: none;
+}
+
+		</style>
+		<script>
+
+function initialize(icon) {
+    if(icon) {
+        $.form.elements["type"].value = icon.type;
+        $.form.elements["group"].value = icon.group;
+        $.form.elements["url"].value = icon.src;
+        $.form.elements["disabled"].value = icon.disabled || icon.src;
+        $.form.elements["shutdown"].value = icon.shutdown || icon.src;
+
+        drawImage($.form.elements["url"], icon.src);
+        drawImage($.form.elements["disabled"], icon.disabled || icon.src);
+        drawImage($.form.elements["shutdown"], icon.shutdown || icon.src);
+    }
+
+    document.body.classList.remove("loading");
+}
+
+function onSubmit (e) {
+    e.preventDefault();
+    
+    $.request.execute({
+        target: "icon",
+        command: document.body.classList.contains("edit")? "set": "add",
+        type: this.elements["type"].value,
+        icon: {
+            type: this.elements["type"].value,
+            group: this.elements["group"].value,
+            src: this.elements["url"].value,
+            disabled: this.elements["disabled"].value || this.elements["url"].value,
+            shutdown: this.elements["shutdown"].value || this.elements["url"].value
+        }
+    }, function () {
+        switch (this.status) {
+        case 200:
+            top.closeDialog(true);
+
+            break;
+        case 409:
+            alert("Error.\n\n명령을 처리하지 못하였습니다.");
+
+            break;
+        default:
+            showMessage(this);
+        }
+
+        document.body.classList.remove("loading");
+    });
+}
+
+function onReset (e) {
+    e.preventDefault();
+
+    if (!confirm("Confirm.\n\n아이콘 설정을 초기화 하겠습니까?")) {
+        return;
+    }
+    
+    $.request.execute({
+        target: "icon",
+        command: "remove",
+        type: this.elements["type"].value
+    }, function () {
+        switch (this.status) {
+        case 200:
+            top.closeDialog(true);
+
+            break;
+        default:
+            showMessage(this);
+        }
+
+        document.body.classList.remove("loading");
+    });
+}
+
+function drawImage(input, url) {
+    input.parentNode.previousElementSibling.style.backgroundImage = "url("+url+")";
+}
+    
+function showMessage(xhr) {
+    switch (xhr.status) {
+    case 401:
+        alert("Notice!\n\n"+ "세션 만료.");
+
+        break;
+    default:
+        alert(`Error!\n\n오류코드 ${xhr.status}.`);
+    }
+
+    try {
+        console.log(JSON.parse(xhr.responseText).error);
+    } catch (e) {}
+}
+
+        </script>
+	</head>
+	
+	<body>
+	
+		<form class="loading" autocomplete="off">
+			<h2>
+                <span  id="close" title="대화창 닫기">&#xf00d;</span>
+                아이콘
+            </h2>
+			<div class="table">
+				<ul>
+					<li>타입
+					<li><input type="text" name="type" placeholder="아이콘 타입" required>
+				</ul>
+				<ul>
+					<li>그룹
+					<li><input type="text" name="group" placeholder="아이콘 그룹" required>
+				</ul>
+				<ul>
+					<li>기본 이미지
+					<li></li>
+					<li><input type="text" name="url" placeholder="Image URL" required>
+				</ul>
+				<ul>
+					<li>비활성 이미지
+					<li></li>
+					<li><input type="text" name="disabled" placeholder="Image URL">
+                </ul>
+                <ul>
+					<li>장애 이미지
+					<li></li>
+					<li><input type="text" name="shutdown" placeholder="Image URL">
+				</ul>
+			</div>
+			<footer>
+                <input type="reset" value="&#xf2ea; 초기화">
+                <input type="submit" value="&#xf0c7; 저장">
+			</footer>
+			<div class="bg_loading"></div>
+		</form>
+        
+        <script src="/js/request.js"></script>
+        <script src="/js/icon.js"></script>
+		<script>
+
+const
+    search = new URLSearchParams(window.location.search),
+    $ = {
+        request: new Request(),
+        type: search.get("type") || undefined,
+        form: document.querySelector("form")
+    };
+
+document.addEventListener("keydown", function (e) {
+	switch (e.keyCode) {
+	case 27:
+        top.closeDialog();
+		
+		break;
+	}
+});
+
+document.getElementById("close").onclick = e => top.closeDialog();
+
+if (top.account.level === 0) {
+    document.body.classList.add("root");
+
+    $.form.onreset = onReset;	
+    $.form.onsubmit = onSubmit;
+}
+
+(function (delay) {
+    var active;
+
+    $.form.elements["url"].oninput =
+    $.form.elements["disabled"].oninput =
+    $.form.elements["shutdown"].oninput = function (e) {
+        const
+            input = this,
+            start = performance.now();
+        let id;
+        
+        active = id = requestAnimationFrame(function f(t) {
+            if (active != id) {
+                return;
+            }
+
+            if (t - start > delay) {
+                drawImage(input, input.value);
+            }
+            else {
+                requestAnimationFrame(f);
+            }
+        });
+    };
+})(500);
+
+if ($.type) {
+    let icon = ITAhM.iconData[$.type];
+
+    $.form.elements["type"].disabled = true;
+
+    $.request.execute({
+        command: "get",
+        target: "icon",
+        type: $.type
+    }, function () {
+        switch(this.status) {
+        case 200:
+            icon = JSON.parse(this.responseText);
+
+            document.body.classList.add("edit");
+        case 204:
+            initialize(icon);
+
+            break;
+        default:
+            showMessage(this);
+        }
+    });
+} else {
+    document.body.classList.remove("loading");
+}
+
+		</script>
+	
+	</body>
+	
+</html>

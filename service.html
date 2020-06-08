@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>CeMS Console</title>
+		
+		<style>
+
+@import "/css/glyphicon.css";
+
+body  {
+	font-family: "맑은 고딕", arial, tahoma;
+	font-size: 10pt;
+	position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+	padding: 0; margin: 0;
+}
+
+article {
+	position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+    display: flex;
+}
+
+iframe {
+    width: 100%; height: 100%;
+	border: none;
+}
+
+article.initialize,
+article.service {
+    justify-content: center;
+    align-items: center;
+}
+
+.bg_loading {
+	background: #4d525a url("/img/loading.gif") no-repeat center;
+	background-size: 32px 32px;
+	opacity: .5;
+}
+
+#signout::after {
+    font-family: "Glyphicons Halflings";
+    font-size: 5em;
+    content: "\e017";
+}
+
+.service::after {
+    font-family: "Glyphicons Halflings";
+    font-size: 5em;
+    color: #00ff00;
+}
+
+.service.false::after {
+    color: #aaaaaa;
+}
+
+#nms::after {
+    content: "\e185";
+}
+
+.container {
+    display: flex;
+    flex-direction: column;
+}
+
+.container >button {
+    display: block;
+}
+
+body:not(.authorized) article.service,
+body.authorized article.initialize,
+body:not(.initialized) article.initialize,
+body.initialized article.signin,
+body:not(.loading) .bg_loading,
+body:not(.nms) #nms {
+	display: none;
+}
+
+		</style>
+		<script>
+
+function signIn (account) {
+    document.body.classList.add("loading");
+
+    document.title = window.localStorage.getItem("agent");
+
+    if (account.level > 0) {
+        alert("Error!\n\n"+
+            "권한 없는 계정.");
+        
+        document.body.classList.add("initialized");
+
+        document.body.classList.remove("loading");
+    } else {
+        $.request.execute({
+            command: "service"
+        }, function () {
+            switch (this.status) {
+            case 200:
+                const services = JSON.parse(this.responseText);
+                let button;
+
+                for (let name in services) {
+                    document.body.classList.add(name);
+                
+                    button = document.getElementById(name);
+                    
+                    if (button) {
+                        button.classList.add(services[name]);
+
+                        button.title = (services[name]? "Stop": "Start") + " Service";
+                    }
+                }
+                
+                document.body.classList.add("authorized", "initialized");
+
+                document.body.classList.remove("loading");
+
+                break;
+            default:
+                showMessage(this);
+            }
+        });
+    }
+}
+
+function showMessage(xhr) {
+    switch (xhr.status) {
+    case 401:
+        alert("Notice!\n\n"+ "세션 만료.");
+
+        break;
+    default:
+        alert(`Error!\n\n오류코드 ${xhr.status}.`);
+    }
+
+    try {
+        console.log(JSON.parse(xhr.responseText).error);
+    } catch (e) {}
+}
+
+		</script>
+	</head>
+	
+	<body>
+        <article class="initialize">
+            <button id="signout" title="Sign out"></button>
+        </article>
+		<article class="service">
+            <div class="container">
+                <button id="nms" class="service"></button>
+            </div>
+		</article>
+		<article class="signin">
+            <iframe id="signin" src="/connect.html"></iframe>
+        </article>
+
+		<iframe id="dialog"></iframe>
+		
+		<article class="bg_loading"></article>
+        
+        <script src="/js/request.js"></script>
+		<script>
+
+const $ = {
+        request: new Request()
+    };
+
+document.getElementById("signout").onclick = e => {
+    document.body.classList.add("loading");
+
+    $.request.execute({
+        command: "signout"
+    }, function () {
+        switch (this.status) {
+        case 200:
+            break;
+        default:
+            showMessage(this);
+        }
+
+        window.location.reload();
+    });
+}
+
+document.getElementById("nms").onclick = function (e) {
+    document.body.classList.add("loading");
+
+    $.request.execute({
+        command: this.classList.contains("true")? "stop": "start",
+        service: "nms"
+    }, function () {
+        switch (this.status) {
+        case 200:
+            window.location.reload();
+
+            break;
+        default:
+            showMessage(this);
+        }
+    });
+};
+
+		</script>
+	
+	</body>
+	
+</html>

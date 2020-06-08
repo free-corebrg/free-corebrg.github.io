@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<meta http-equiv="Cache-Control" content="No-Cache">
+		
+		<title>ITAhM</title>
+		
+		<style>
+@import "/css/itahm.css";
+
+body {
+	position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+	margin: 0; padding: 0;
+    color: #fff;
+}
+
+#grid_x {
+    position: absolute; top: 10px; right: 0; bottom: 10px; left: 0;
+}
+
+#grid_y {
+    position: absolute; top: 0; right: 10px; bottom: 0; left: 0;
+}
+
+.chart {
+    position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+}
+
+#max {
+    position: absolute; top: 0; right: 0;
+    transform: translateY(-100%);
+    padding: 0.5em;
+}
+
+#min {
+    position: absolute; right: 0; bottom: 0;
+    transform: translateY(100%);
+    padding: 0.5em;
+}
+
+#cur {
+    position: absolute; right: 0; top: 50%;
+    transform: translate(100%, -50%);
+    font-weight: bolder;
+    font-size: 1.5em;
+    text-shadow: 0 2px 3px #f00;
+}
+
+svg {
+    width: 100%; height: 100%;
+}
+
+#graph path {
+    stroke-width: 3px;
+    fill-opacity: 0.6;
+}
+
+#pointer {
+    transition: all 0.5s;
+}
+
+stop:nth-of-type(1) {
+    stop-color: #fcfcfc;
+}
+
+stop:nth-of-type(2) {
+    stop-color: #efeff1;
+}
+
+stop:nth-of-type(3) {
+    stop-color: #9b5050;
+}
+		</style>
+		<script>
+
+function Path() {
+    this.initialize(arguments);
+};
+
+Path.NS = "http://www.w3.org/2000/svg";
+Path.COLOR = "#0084ff";
+
+Path.prototype = {
+    initialize: function (args) {
+        const color = args[1] || Path.COLOR;
+
+        this.path = document.createElementNS(Path.NS, "path");
+
+        this.beginPath();
+
+        args[0].appendChild(this.path, args[0].lastElementChild);
+
+        this.path.setAttributeNS(null, "stroke", color);
+        this.path.setAttributeNS(null, "fill", color);
+    },
+    
+    moveTo: function (x, y) {
+        this.distance[this.distance.length] = "M"+ x +" "+ y;
+        
+        return this;
+    },
+    
+    lineTo: function (x, y) {
+        this.distance[this.distance.length] = "L"+ x +" "+ y;
+        
+        return this;
+    },
+    
+    v: function (y) {
+        this.distance[this.distance.length] = "V"+ y;
+        
+        return this;
+    },
+    
+    draw: function () {
+        this.path.setAttributeNS(null, "d", this.distance.join(" "));
+    },
+    
+    set: function (key, value) {
+        this.path.setAttributeNS(null, key, value);
+    },
+    
+    beginPath: function () {
+        this.distance = [];
+    },
+    
+    closePath: function () {
+        this.distance[this.distance.length] = "Z"
+    }
+};
+    
+function RealtimeData() {
+	this.initialize(PERIOD);
+}
+
+RealtimeData.prototype = {
+	initialize: function (period) {
+		this.period = period;
+		this.valueArray = [];
+		this.dateArray = [];
+	},
+	put: function (value) {
+		var millis = new Date().getTime();
+		
+		this.dateArray.push(millis);
+		this.valueArray.push(value);
+		
+		millis -= this.period;
+		
+		while (this.dateArray[0] < millis) {
+			this.dateArray.shift();
+			this.valueArray.shift();
+		}
+		
+		this.max = Math.max.apply(undefined, this.valueArray);
+		this.min = Math.min.apply(undefined, this.valueArray);
+	},
+    draw: function (path, pointer, max, min, height, tpp) {
+        const
+            now = new Date(),
+            valueRatio = max === min? undefined: height / (max - min);
+
+        path.beginPath();
+
+        var x, y, value;
+
+        this.dateArray.forEach((millis, i) => {
+            value = this.valueArray[i];
+          
+            y = valueRatio? (value - min) * valueRatio: height /2;
+
+            x = (now - millis) / tpp;
+
+            if (i === 0) {
+                path.moveTo(x, 0);
+            }
+            
+            path.lineTo(x, y);
+        });
+
+        path.lineTo(x, 0);
+
+        path.draw();
+
+        pointer.setAttributeNS(null, "cy", y);
+
+        this.last = value;
+    }
+};
+
+function resize() {
+    var
+        chartRect = document.getElementById("chart").getBoundingClientRect(),
+        yRect = document.getElementById("grid_x").getBoundingClientRect(),
+        xRect = document.getElementById("grid_y").getBoundingClientRect();
+
+    window.chartHeight = yRect.height,
+    window.chartWidth = xRect.width;
+    window.chartTPP = PERIOD / chartWidth;
+
+    document.getElementById("graph").transform.baseVal.getItem(0)
+       .setTranslate(chartWidth, chartHeight + yRect.top - chartRect.top);
+}
+
+		</script>
+	</head>
+	
+	<body>
+        <header></header>
+        <div id="grid_x"></div>
+        <div id="grid_y"></div>
+        <div class="chart">
+            <svg id="chart" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <radialGradient id="pointer_gradient" cx="50%" cy="50%" r="50%" fx="50%" fy="90%">
+                        <stop offset="0%" />
+                        <stop offset="30%" />
+                        <stop offset="100%" />
+                    </radialGradient>
+                </defs>
+                <g id="graph" transform="translate(0) scale(-1 -1)">
+                    <g id="path" transform="translate(0)"></g>
+                    <circle id="pointer" cx="0" r="10" fill="url(#pointer_gradient)" />
+                </g>
+            </svg>
+        </div>
+		<script src="/js/ITAhM.js"></script>
+		<script src="/js/object.js"></script>
+		<script>
+
+const PERIOD = 100 *1000;
+var resetAnimation = false;
+
+function draw(realtimeObj) {
+    if (!realtimeObj.path) {
+        realtimeObj.path = new Path(document.getElementById("path"), realtimeObj.color || "#0084ff");
+    }
+
+    resetAnimation = true;
+    
+    realtimeObj.data.draw(
+        realtimeObj.path,
+        document.getElementById("pointer"),
+        realtimeObj.data.max,
+        realtimeObj.data.min,
+        window.chartHeight,
+        window.chartTPP);    
+}
+
+// resize
+(function (delay) {
+	var start;
+	
+	function optimize(timestamp) {
+        if (!start) {
+            start = timestamp;
+        }
+
+		if (timestamp - start > delay) {
+			resize();
+		}
+		else {
+			requestAnimationFrame(optimize);
+		}
+	}
+	
+	window.addEventListener("resize", function() {
+        if (start) {
+            start = undefined;
+        } else {
+            requestAnimationFrame(optimize);
+        }
+	});
+})(300);
+
+resize();
+
+function animation (start) {
+    return function (timestamp) {
+        if (!start) {
+            start = timestamp;
+        }
+
+        if (window.resetAnimation) {
+            window.resetAnimation = false;
+
+            start = undefined;
+
+            document.getElementById("path").transform.baseVal.getItem(0).setTranslate(0, 0);
+        }
+        else {
+            document.getElementById("path").transform.baseVal.getItem(0).setTranslate((timestamp - start) / window.chartTPP, 0);
+        }
+        
+        window.requestAnimationFrame(animation(start));
+    };
+}
+
+window.requestAnimationFrame(animation());
+
+		</script>
+	
+	</body>
+	
+</html>

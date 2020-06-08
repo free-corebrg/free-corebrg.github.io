@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<meta http-equiv="Cache-Control" content="no-cache">
+		<title>dialog</title>
+		
+		<style>
+@import "/css/style.css";
+@import "/css/glyphicon.css";
+
+body {
+    margin: 0; padding: 0;
+	position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	background-color: rgba(0, 0, 0, .8);
+}
+
+h2 {
+	margin: 0; padding: 10px;
+	background-color: #0084ff;
+    color: #fff;
+    text-shadow: 0 2px 3px #000;
+}
+
+.dialog {
+	width: 380px;
+	padding: 20px;
+	background-color: #fff;
+    position: relative;
+}
+
+.table li input[type="text"],
+.table li select {
+	padding: .5em;
+	width: 100%;
+	box-sizing: border-box;
+}
+
+input[type="checkbox"] {
+	margin: .5em;
+	vertical-align: middle;
+}
+
+table {
+    width: 100%;
+    margin: 1em 0;
+}
+
+th {
+    background-color: #686160;
+    color: #fff;
+}
+
+td, th {
+    padding: 3px;
+}
+
+td >input[type=text],
+td >input[type=number],
+select {
+    padding: 0.5em;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+td >input[type=text],
+td >input[type=number],
+select {
+    padding: 0.5em;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+header {
+    float: right;
+    font: 1.2em "Glyphicons Halflings";
+}
+
+.address {
+    font-family: "Glyphicons Halflings";
+}
+
+.address * {
+    font-family: inherit;
+}
+
+.address::before {
+    display: inline-block;
+    content: "\e013";
+    color: transparent;
+}
+
+.address.valid::before {
+    color: #5cb85c;
+}
+
+footer {
+	display: flex;
+	margin-top: 1em;
+}
+
+footer> input {
+	flex: 1;
+	border-radius: 1.2em;
+	background-color: #0084ff;
+	color: #fff;
+	border: .2em solid transparent;
+	padding: .5em;
+}
+
+footer> input:hover {
+	background-color: #fff;
+	color: #0084ff;
+	border-color: #0084ff;
+}
+
+#close {
+    display: inline-block;
+    transition: 0.2s linear;
+}
+
+#close:hover {
+	transform: scale(1.2) rotate(90deg);
+    cursor: pointer;
+}
+
+.bg_loading {
+    position: absolute;
+}
+
+body:not(.edit) input[type=reset] {
+	display: none;
+}
+
+		</style>
+        <script>
+        
+function showMessage(data) {
+    switch (data.status) {
+    case 401:
+        alert("Error!\n\n"+ "세션 만료.");
+
+        break;
+    default:
+        alert("Error!\n\n"+ "오류코드: "+ data.status);
+    }
+
+    try {
+        console.log(JSON.parse(data.responseText).error);
+    } catch (e) {}
+}
+
+        </script>
+	</head>
+	
+	<body class="loading">
+		<form class="dialog" autocomplete="off">
+			<header>
+                <span id="close" title="대화창 닫기">&#xe014</span>
+            </header>
+			<h2>Branch</h2>
+			<table>
+                <tbody>
+                    <tr>
+                        <th>명칭</td>
+                        <td>
+                            <input name="name" type="text" required>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th class="address">
+                            주소
+                            <input type="button" name="validate" value="&#xe062" title="주소 위치 확인">
+                        </td>
+                        <td>
+                            <input name="address" type="text" required>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>주소 세부</td>
+                        <td>
+                            <input name="subaddr" type="text">
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>연락 번호</td>
+                        <td>
+                            <input name="phone" type="text">
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+			<footer>
+				<input type="reset" value="삭제">
+				<input type="submit" value="확인" disabled>
+            </footer>
+            
+			<div class="bg_loading dialog"></div>
+		</form>
+
+        <script src="//dapi.kakao.com/v2/maps/sdk.js?appkey=2d5f1506a806e98b9b51ecb765853bd7&libraries=services"></script>
+		<script>
+
+//if (top.account.level === 0) {
+	document.querySelector("input[type=submit]").disabled = false;
+	document.querySelector("input[type=reset]").disabled = false;
+//}
+const $ = {
+    thread: new Worker("/js/thread.js")
+};
+
+$.thread.postMessage({
+    action: "initialize",
+    agent: window.localStorage.getItem("agent")
+});
+
+function close() {
+	parent.document.body.classList.remove("dialog");
+}
+
+document.addEventListener("keydown", function (e) {
+	switch (e.keyCode) {
+	case 27:
+		close();
+		
+		break;
+	}
+});
+
+document.getElementById("close").onclick = close;
+
+(function (form) {
+	form.onreset = function (e) {
+		if (!confirm("Confirm\n\nBranch를 삭제하겠습니까?")) {
+			return;
+		}
+		
+		document.body.classList.add("loading");
+        
+        $.thread.onmessage = function (e) {
+            switch (e.data.status) {
+				case 200:
+					parent.location.reload();
+
+					break;
+				default:
+                    showMessage(e.data);
+			}
+        }
+
+        $.thread.postMessage({
+            action: "request",
+            request: {
+                command: "remove",
+                target: "branch",
+                id: $.branch.id
+            }
+        });
+	};
+    
+	form.onsubmit = function (e) {
+        e.preventDefault();
+        
+		const request = {
+            target: "branch",
+            branch: $.branch
+		};
+		
+		document.body.classList.add("loading");
+
+        if ($.branch.id) {
+            request.command = "set";
+            request.id = $.branch.id;
+        }
+        else {
+            request.command = "add";
+        }
+
+        $.branch.name = form.elements["name"].value;
+        $.branch.address = form.elements["address"].value;
+        $.branch.subaddr = form.elements["subaddr"].value;
+        $.branch.phone = form.elements["phone"].value;
+
+        $.thread.onmessage = function (e) {
+			switch (e.data.status) {
+            case 200:
+                parent.location.reload();
+
+                break;
+            default:
+                showMessage(e.data);
+			}
+        };
+        
+        $.thread.postMessage({
+            action: "request",
+            request: request
+        });
+	};
+
+    form.elements["validate"].onclick = function (e) {
+        document.body.classList.add("loading");
+
+        const
+            geocoder = new kakao.maps.services.Geocoder(),
+            address = form.elements["address"].value;
+
+        geocoder.addressSearch(address, (result, status) => {
+            if (status === kakao.maps.services.Status.OK) {
+                document.body.querySelector(".address").classList.add("valid");
+
+                $.branch.lat = result[0].y;
+                $.branch.lng = result[0].x;
+            } else {
+                document.body.querySelector(".address").classList.remove("valid");
+
+                delete $.branch.lat;
+                delete $.branch.lng;
+
+                alert("Notice.\n\n위치 확인 오류.");
+            }
+
+            document.body.classList.remove("loading");
+        });
+    };
+
+	// public
+	window.initialize = function (branch) {
+        $.branch = JSON.parse(JSON.stringify(branch));
+
+		if ("id" in branch) {
+            form.elements["name"].value = branch.name;
+            form.elements["address"].value = branch.address;
+            form.elements["subaddr"].value = branch.subaddr;
+            form.elements["phone"].value = branch.phone;
+
+            if ("lat" in branch && "lng" in branch) {
+                document.body.querySelector(".address").classList.add("valid");
+            }
+
+            document.body.classList.add("edit");
+
+            form.querySelector("[type=submit").value = "수정";
+        } else {
+            form.querySelector("[type=submit").value = "추가";
+        }
+        
+        document.body.classList.remove("loading");
+	};
+}) (document.querySelector("form"));
+
+	</script>
+	
+	</body>
+	
+</html>

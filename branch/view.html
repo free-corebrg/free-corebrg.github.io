@@ -1,0 +1,421 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title></title>
+		
+		<style>
+@import "/css/itahm.css";
+@import "/css/fa.css";
+
+body {
+    position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+    margin: 0; padding: 0;
+    user-select: none;
+}
+
+#map {
+    width: 100%; height: 100%;
+}
+
+aside {
+    position: absolute; top: 0; right: 0; left: 0;
+    z-index: 9;
+    padding: 1em;
+    text-align: center;
+    font-weight: bold;
+    color: #fff;
+    pointer-events: none;
+}
+
+#event {
+    cursor: pointer;
+    pointer-events: all;
+}
+
+#event::before {
+    content: attr(data-count);
+    display: inline-block;
+    background-color: #ffa500;
+    border: 1px solid #c46c00;
+    width: 3em; height: 3em;
+	box-sizing: border-box;
+	padding: 1em;
+	border-radius: 50%;
+    text-align: center;
+}
+
+#event::after {
+    content: attr(data-message);
+    display: inline-block;
+    background-color: #ffa500;
+    border: 1px solid #c46c00;
+    padding: .5em 1em .5em 1em;
+	margin-left: 1em;
+	border-radius: 1em 0 0 1em;
+}
+
+nav {
+    position: absolute; top: 5px; left: 5px;
+    display: flex;
+    font: 20px "Font Awesome 5 Free";
+    color: #ffffff;
+    z-index: 9;
+}
+
+nav >span {
+    border-radius: 50%;
+    display: flex; width: 32px; height: 32px;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 132, 255, 0.5);
+    border-color: #0084ff;
+    cursor: pointer;
+}
+
+nav >span:hover {
+    background-color: #0084ff;
+}
+
+.label {
+    display: inline-block;
+    padding: 0.5em;
+    text-align: center;
+    font-weight: bold;
+    background-color: #71706e;
+    box-shadow: 0px 2px 3px 0px #000000;
+    text-shadow: 0px 1px 1px rgba(0,0,0,0.5);
+    color: #ffffff;
+    border-radius: 0.5em;
+    user-select: none;
+    cursor: pointer;
+}
+
+.label:hover  {
+    box-shadow: 0px 5px 10px 0px #000000;
+    transform: translateY(-3px);
+}
+
+.status {
+    width: 2em;
+    height: 2em;
+    border-radius: 50%;
+    opacity: 0;
+}
+
+.status.critical {
+    background-color: #ffa500;
+    animation: status 2s infinite;
+}
+
+.status.shutdown {
+    background-color: #ff0000;
+    animation: status 2s infinite;
+}
+
+.bg_loading {
+    z-index: 9;
+}
+
+@keyframes status {
+	0% {
+    	opacity: 0;
+        transform: scale(0);
+    }
+    50% {
+    	opacity: 0.8;
+        transform: scale(2);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(0);
+    }
+}
+
+body.frame nav,
+body:not(.event) #event {
+    display: none;
+}
+
+        </style>
+        <script>
+        
+function onEvent(event) {
+    if (!event || event.level < 0) {
+        return;
+    }
+
+    if (parent === top) {
+        parent.onEvent(event);
+    }
+
+    if (event.id) {
+        if ($.timer) {
+            clearTimeout($.timer);
+        }
+
+        $.timer = setTimeout(() => requestAnimationFrame(t => $.request.execute({
+            command: "get",
+            target: "node"
+        }, function () {
+            switch(this.status) {
+            case 200:
+                $.nodeData = JSON.parse(this.responseText);
+                
+                update(event);
+
+                break;
+            default:
+                showMessage(this);
+            }
+        })), 1000);
+    }
+}
+
+function update(event) {
+    const
+        id = String(event.id),
+        shutdown = {},
+        critical = {};
+    var
+        pos = $.positionData[id],
+        group, status;
+    
+    if (pos) {
+        const group = parent.findParentFromStage(pos.parent);
+
+        if (group in $.branchData) {
+            const branch = $.branchData[group];
+
+            if ("lat" in branch && "lng" in branch) {
+                const latLng = new kakao.maps.LatLng(branch.lat, branch.lng);
+
+                $.map.setLevel(3);
+                $.map.setCenter(latLng);
+            }
+        }
+    }
+
+    for (let id in $.nodeData) {
+        node = $.nodeData[id];
+        pos = $.positionData[id];
+
+        if (pos && pos.parent && "protocol" in node) {
+            if (group = parent.findParentFromStage(pos.parent)) {
+                if ("status" in node && !node.status) {
+                    shutdown[group] = true;
+                }
+                else if ("critical" in node && node.critical) {
+                    critical[group] = true;
+                }
+            }
+        }
+    }
+
+    for (let id in $.branchData) {
+        status = $.statusMap[id].getContent();
+
+        if (status) {
+            status.className = "status";
+
+            if (shutdown[id]) {
+                status.classList.add("shutdown");
+            } else if (critical[id]) {
+                status.classList.add("critical");
+            }
+        }
+    }
+}
+
+function addBranch(branch, status) {
+    if (!("lat" in branch) || !("lng" in branch)) {
+        return;
+    }
+
+    const
+        pos = new kakao.maps.LatLng(branch.lat, branch.lng),
+        marker = new kakao.maps.Marker({
+            position: pos,
+            clickable: false
+            //,image: new kakao.maps.MarkerImage("/img/svg/idc.svg", new kakao.maps.Size(50, 40))
+        }),
+        div = document.createElement("div");
+
+    if (branch.name) {
+        new kakao.maps.CustomOverlay({
+            map: $.map,
+            position: pos,
+            content: `<span class="label" data-id="${branch.id}" onclick="onSelect(this);">${branch.name}</span>`
+        });
+    }
+
+    div.className = "status";
+    
+    if (status) {
+        div.classList.add(status);
+    }
+
+    $.statusMap[String(branch.id)] = new kakao.maps.CustomOverlay({
+        map: $.map,
+        position: pos,
+        content: div
+    });
+
+    $.clusterer.addMarker(marker);
+}
+
+function initialzie() {
+    const
+        shutdown = {},
+        critical = {};
+    var pos, group;
+
+    for (let id in $.nodeData) {
+        node = $.nodeData[id];
+        pos = $.positionData[id];
+
+        if (pos && pos.parent && "protocol" in node) {
+            if (group = parent.findParentFromStage(pos.parent)) {
+                if ("status" in node && !node.status) {
+                    shutdown[group] = true;
+                }
+                else if ("critical" in node && node.critical) {
+                    critical[group] = true;
+                }
+            }
+        }
+    }
+
+    for (let id in $.branchData) {
+        addBranch($.branchData[id], shutdown[id]? "shutdown": critical[id]? "critical": undefined);
+    }
+
+    $.request.listen(onEvent);
+}
+
+function onSelect (overlay) {
+    if (top === parent) {
+        location.replace(`/topology/view.html?group=${overlay.dataset.id}`);
+    }
+}
+
+function showMessage(xhr) {
+    switch (xhr.status) {
+    case 401:
+        alert("Notice!\n\n"+ "세션 만료.");
+
+        break;
+    default:
+        alert(`Error!\n\n오류코드 ${xhr.status}.`);
+    }
+
+    try {
+        console.log(JSON.parse(xhr.responseText).error);
+    } catch (e) {}
+}
+
+        </script>
+    </head>
+    <body class="loading">
+        <div id="map"></div>
+        <nav>
+            <span title="초기화" id="reload">
+                &#xf2f9;
+            </span>
+        </nav>
+        <aside>
+            <span id="event" data-count="0"></span>
+        </aside>
+        <div class="bg_loading"></div>
+
+        <script src="/js/request.js"></script>
+        <script src="//dapi.kakao.com/v2/maps/sdk.js?appkey=2d5f1506a806e98b9b51ecb765853bd7&libraries=services,clusterer,drawing"></script>
+        <script>
+
+const
+    $ = {
+        request: new Request(),
+        statusMap: {},
+        event: document.getElementById("event"),
+        positionData: parent.getPositionData()
+    };
+
+if (top !== parent) {
+    document.body.classList.add("frame");
+}
+
+document.getElementById("reload").onclick = e => window.location.reload();
+
+document.getElementById("event").onclick = e => {
+    document.body.classList.remove("event");
+
+    $.event.dataset.count = 0;
+};
+
+function initNode(e) {
+    switch(this.status) {
+        case 200:
+            $.nodeData = JSON.parse(this.responseText);
+            
+            $.request.execute({
+                command: "get",
+                target: "branch"
+            }, initBranch);
+            
+            break;
+        default:
+            showMessage(this);
+    }
+}
+
+function initBranch () {
+    switch(this.status) {
+    case 200:
+        $.branchData = JSON.parse(this.responseText);
+
+        initialzie();
+        
+        document.body.classList.remove("loading");
+        
+        break;
+    default:
+        showMessage(this);
+    }
+}
+
+try {
+    $.map = new kakao.maps.Map(document.getElementById("map"), {
+        center: new kakao.maps.LatLng(36.289385, 127.729168),
+        level: 12
+    });
+} catch (e) {
+    alert("Error!\n\n지도 불러오기 오류.");
+
+    throw "kakao.maps.Map exception";
+}
+
+$.clusterer = new kakao.maps.MarkerClusterer({
+    map: $.map, // 마커들을 클러스터로 관리하고 표시할 지도 객체 
+    averageCenter: true, // 클러스터에 포함된 마커들의 평균 위치를 클러스터 마커 위치로 설정 
+    minLevel: 10, // 클러스터 할 최소 지도 레벨
+    disableClickZoom: true
+});
+
+//$.map.addOverlayMapTypeId(kakao.maps.MapTypeId.TERRAIN);
+
+kakao.maps.event.addListener(
+    $.clusterer,
+    "clusterclick",
+    cluster => $.map.setLevel($.map.getLevel() -1, {anchor: cluster.getCenter()})
+);
+
+$.request.execute({
+    command: "get",
+    target: "node"
+}, initNode);
+
+        </script>
+        
+    </body>
+</html>

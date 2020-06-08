@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <style>
+@import "/css/fa.css";
+
+body {
+    position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+    padding: 0; margin: 0;
+    font-family: "맑은 고딕", Arial, Tahoma;
+}
+
+body::before,
+body::after {
+    content: "";
+    position: absolute; top: 0; left: 0;
+    z-index: -1;
+    pointer-events: none;
+}
+
+body::before {
+    right: 0; height: 50%;
+    border-bottom: 1px dotted #aaaaaa;
+}
+
+body::after {
+    bottom: 0; width: 50%;
+    border-right: 1px dotted #aaaaaa;
+}
+
+nav {
+    position: absolute; top: 5px; left: 5px;
+    display: flex;
+    font: 20px "Font Awesome 5 Free";
+    color: #ffffff;
+}
+
+nav >span {
+    border-radius: 50%;
+    display: flex; width: 32px; height: 32px;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 132, 255, 0.5);
+    border-color: #0084ff;
+    cursor: pointer;
+}
+
+nav >span:hover {
+    background-color: #0084ff;
+}
+
+aside {
+    position: absolute; top:0; right: 0; bottom: 0;
+    background-color: #ffffff;
+    width: 0;
+}
+
+iframe {
+    width: 100%; height: 100%;
+    border: none;
+}
+
+body.list aside {
+    width: 500px;
+    border-left: 1px solid #777;
+    transition: width 1s;
+}
+
+#tab {
+    position: absolute; top: 50%; left: 0;
+    padding: 3px;
+    transform: translateX(-100%);
+    font-family: "Font Awesome 5 Free";
+    border: 1px solid #777777;
+    border-right-color: #ffffff;
+    cursor: pointer;
+}
+
+svg {
+    width: 100%; height: 100%;
+    user-select:none;
+}
+
+rect {
+    fill: #dddddd;
+    stroke-width: 0.5;
+    stroke: #666666;
+}
+
+g.selected rect {
+    fill: #777777;
+}
+
+g.selected text {
+    fill: #ffffff;
+}
+
+g.over rect {
+    stroke: #ffdf01;
+    stroke-width: 0.5;
+    stroke-dasharray: 0.5, 0.5;
+}
+
+text {
+    font-size: 3px;
+    pointer-events: none;
+    fill: #999999;
+    text-shadow: #000 0 1px;
+}
+
+        </style>
+        <script>
+
+function showMessage(xhr) {
+    switch (xhr.status) {
+    case 401:
+        alert("Notice!\n\n"+ "세션 만료.");
+
+        break;
+    default:
+        alert(`Error!\n\n오류코드 ${xhr.status}.`);
+    }
+
+    try {
+        console.log(JSON.parse(xhr.responseText).error);
+    } catch (e) {}
+}
+            
+        </script>        
+    </head>
+        
+    <body>
+        <nav>
+            <span title="편집 종료" id="close">&#xf00d;</span>
+            <span title="Rack 추가" id="add">&#xf067;</span>
+            <span title="위치 저장" id="save">&#xf0c7;</span>
+            <span title="
+==============================
+
+● Click: Rack 선택 
+● Rack 선택 후 Drag: Rack 이동
+● Right Click: Rack 편집
+● 목록에서 Drag & Drop: Rack 장착
+● Rack 위치 변동시 저장 필수
+
+==============================
+                ">
+                    &#xf128;
+                </span>
+        </nav>
+        <svg id="svg">
+            <defs>
+                <g id="rack">
+                    <rect x="0" y="0" width="16" height="24" transform="translate(-8, -12)"></rect>
+                    <text x="0" y="0" dominent-baseline="middle" text-anchor="middle"></text>
+                </g>
+            </defs>
+            <g id="container" transform="translate(0, 0) scale(5, 5)"></g>
+        </svg>
+        <aside>
+            <div id="tab">&#xf00b;</div>
+            <iframe id="list"></iframe>
+        </aside>
+        <script src="/js/request.js"></script>
+        <script>
+const $ = {
+        request: new Request()
+    };
+
+document.getElementById("close").onclick = function () {
+    window.sessionStorage.setItem("rack_mode", "view");
+
+    window.location.replace("/dc/view.html");
+};
+
+document.getElementById("add").onclick = function () {
+    window.sessionStorage.removeItem("rack_id");
+
+    top.showDialog("/dc/dialog/rack.html");
+};
+
+document.getElementById("tab").onclick = function (e) {
+    const frame = document.getElementById("list");
+
+    if (document.body.classList.contains("list")) {
+        document.body.classList.remove("list");
+
+        frame.onload = undefined;
+
+        frame.src = "about:blank";
+    } else {
+        frame.onload = function () {
+            document.body.classList.add("list");
+        };
+
+        frame.src = "/dc/list.html";
+    }
+};
+
+{
+    const
+        svg = document.getElementById("svg"),
+        container = document.getElementById("container"),
+        copy = document.querySelector("defs>g"),
+        map = {};
+
+    let
+        selected,
+        dragOrigin,
+        selectedOrigin,
+        scale = 5;
+
+    function onResize() {
+		const rect = svg.getBoundingClientRect();
+		
+        container.transform.baseVal.getItem(0).setTranslate(rect.width /2, rect.height /2);
+    }
+    
+    function onScale(e) {
+        e.deltaY < 0? scale *= 1.1: scale /= 1.1;
+
+        container.transform.baseVal.getItem(1).setScale(scale, scale);
+    }
+
+    function onCancel(e) {
+        if (selected) {
+            selected.classList.remove("selected");
+        }
+
+        selected = undefined;
+    }
+
+    function onSelect(e) {
+        e.stopPropagation();
+
+        if (selected) {
+            selected.classList.remove("selected");
+        }
+
+        selected = this;
+        
+        container.appendChild(this);
+
+        selected.classList.add("selected");
+    }
+
+    function onMenu(e) {
+        e.preventDefault();
+
+        top.showDialog(`/dc/dialog/rack.html?rack=${this.dataset.id}`);
+    }
+
+    function onDragStart(e) {
+        if (selected && e.target.parentNode === selected) {
+            dragOrigin = {
+                x: e.clientX,
+                y: e.clientY
+            };
+        }
+    }
+
+    function onDragMove(e) {
+        if (dragOrigin) {
+            const
+                pos = map[selected.dataset.id],
+                x = Math.round((e.clientX - dragOrigin.x) /scale /1) *1 + pos.x,
+                y = Math.round((e.clientY - dragOrigin.y) /scale /1) *1 + pos.y;
+
+            selected.setAttribute("transform", `translate(${x},${y})`);
+        }
+    }
+
+    function onDragEnd(e) {
+        if (dragOrigin) {
+            const pos = map[selected.dataset.id];
+
+            pos.x += Math.round((e.clientX - dragOrigin.x) /scale /1) *1;
+            pos.y += Math.round((e.clientY - dragOrigin.y) /scale /1) *1;
+
+            dragOrigin = undefined;
+        }
+    }
+
+    svg.addEventListener("click", onCancel)
+    svg.addEventListener("wheel", onScale);
+    svg.addEventListener("mousedown", onDragStart);
+    svg.addEventListener("mousemove", onDragMove);
+    svg.addEventListener("mouseup", onDragEnd);
+    window.addEventListener("resize", onResize);
+
+    document.getElementById("save").onclick = function () {
+        document.body.classList.add("loading");
+
+        $.request.execute({
+            command: "set",
+            target: "rack",
+            rack: map
+        }, function () {
+            switch (this.status) {
+            case 200:
+                alert("Information.\n\n저장 성공.");
+
+                document.body.classList.remove("loading");
+
+                break;
+
+            default:
+                showMessage(this);
+            }
+        });
+    };
+
+    /**
+     * @param {string} id
+     **/
+    window.addRack = function (id, rack) {
+        const node = copy.cloneNode(true);
+        
+        node.setAttribute("transform", `translate(${rack.x},${rack.y})`);
+
+        node.querySelector("text").textContent = rack.name;
+        node.addEventListener("click", onSelect);
+        node.addEventListener("contextmenu", onMenu);
+        node.addEventListener("dragenter", e => {
+            e.preventDefault();
+
+            node.classList.add("over");
+        });
+
+        node.addEventListener("dragleave", e => {
+            e.preventDefault();
+
+            node.classList.remove("over");
+        });
+
+        node.addEventListener("dragover", e => {
+            e.preventDefault();
+
+            e.dataTransfer.dropEffect = "copy";
+
+            return false;
+        });
+        
+        node.addEventListener("drop", e => {
+            e.stopPropagation();
+        
+            top.showDialog(`/dc/dialog/location.html?rack=${id}&device=${e.dataTransfer.getData("text")}`);
+
+            node.classList.remove("over");
+        });
+        
+        node.dataset.id = id;
+
+        map[id] = rack;
+
+        container.appendChild(node);
+    };
+
+    onResize();
+}
+
+$.request.execute({
+    command: "get",
+    target: "rack"
+}, function () {
+    switch (this.status) {
+    case 200:
+        const rackData = JSON.parse(this.responseText);
+
+        for (let id in rackData) {
+            addRack(id, rackData[id]);
+        }
+
+        document.body.classList.remove("loading");
+
+        break;
+
+    default:
+        showMessage(this);
+    }
+});
+
+        </script>
+    </body>
+</html>

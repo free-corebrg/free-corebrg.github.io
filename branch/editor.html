@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<meta http-equiv="Cache-Control" content="no-cache">
+		
+		<title>ITAhM</title>
+		
+		<style>
+@import "/css/style.css";
+
+body {
+	font-family: arial, tahoma, "맑은 고딕";
+	font-size: 10pt;
+	position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+	margin: 0; padding: 0;
+    border: 5px solid #f00;
+    background-color: #4d525a;
+}
+
+body::before,
+body::after {
+    content: "";
+    position: fixed;
+    z-index: -1;
+}
+
+body::before {
+	top: 0; right: 50%; bottom: 0;
+	border-right: 1px dotted #ddd;
+}
+
+body::after {
+	top: 50%; right: 0; left: 0;
+	border-top: 1px dotted #ddd;
+}
+
+body, input, button {
+	margin: 0;
+	padding: 0; 
+}
+
+#selector >rect {
+	fill: #ddd;
+	fill-opacity: 0.5;
+	transform-origin: left top;
+}
+
+#selector:not(.active) {
+	display: none;
+}
+
+#map {
+	width: 100%; height: 100%;
+}
+
+/* svg*/
+text::selection {
+	background: none;
+}
+
+text {
+	font-family: 10px "맑은 고딕", Tahoma, Arial;
+	fill: #fff;
+	text-anchor: middle;
+}
+
+#line text {
+	font-size: 11px;
+	fill: #aaa;
+}
+
+polyline {
+    fill: none;
+}
+
+#link line {
+	stroke: #800;
+	stroke-width: 2;
+	stroke-dasharray: 2, 2;
+}
+
+#link.match line {
+	stroke: #0f0;
+}
+
+g.node >text {
+	font-size: 12px;
+}
+
+body.loading g {
+	display: none;
+}
+
+g.node *,
+body.drag #check circle,
+body.drag #select circle {
+	pointer-events: none;
+}
+
+g.node circle {
+	pointer-events: all;
+	stroke-width: 5px;
+	stroke: none;
+	fill: none;
+}
+
+g.node.parent circle {
+	stroke: #ddd;
+	fill: #0084ff;
+}
+
+#select >g.node >circle,
+#check >g.node >circle {
+	fill: #fff;
+}
+
+#parent {
+	transform-origin: right bottom;
+}
+
+#parent >circle:not(:hover) {
+	stroke: #ddd; stroke-width: 5px;
+}
+
+g.group >circle {
+	stroke: #400080;
+}
+
+g.upper >circle {
+	stroke: #ddd;
+}
+
+body.drag g.group:hover >circle {
+	stroke: #0f0;
+}
+/* control */
+.control {
+    position: absolute; top: 5px; left: 5px;
+    list-style: none;
+    margin: 0; padding: 0;
+    display: flex;
+    align-items: flex-start;
+}
+
+/* button */
+.button {
+    display: flex;
+    justify-content:center;
+    align-items:center;
+    width: 32px; height: 32px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    box-sizing: border-box;
+}
+
+.button.enable {
+    border-radius: 50%;
+    background-color: #0084ff;
+    border-color: #0084ff;
+}
+
+.button.enable.active:hover {
+    background-color: rgba(0, 132, 255, 0.5);
+}
+/* popup */
+
+.popup_container {
+    position: relative;
+}
+
+.popup {
+    display: flex;
+}
+
+.popup_container:not(:hover) .popup {
+	display: none;
+}
+
+.popup span {
+	background-color: #555;
+	display: block;
+}
+
+.popup span:hover {
+	background-color: #0084ff;
+}
+
+/**/
+
+body.name .node tspan:last-child,
+body:not(.name) .node tspan:first-child,
+body:not(.root) .root {
+	display: none;
+}
+
+		</style>
+		
+		<script>
+        
+/** public **/
+function getSelectedNodeID() {
+    const selected = [];
+
+    [].forEach.call($.checkCanvas.querySelectorAll("g.node"), function (svgDevice) {
+        selected.push(svgDevice.id);
+    });
+
+    return selected;
+}
+
+function showMessage(data) {
+    switch (data.status) {
+    case 401:
+        alert("Error!\n\n"+ "세션 만료.");
+
+        break;
+    default:
+        alert("Error!\n\n"+ "오류코드: "+ data.status);
+    }
+
+    try {
+        console.log(JSON.parse(data.responseText).error);
+    } catch (e) {}
+}
+
+function zoom() {
+	$.transform.getItem(1).setScale($.scale, $.scale);
+}
+
+function isChecked(svgDevice) {
+	if (!hasClass(svgDevice, "node")) {
+		svgDevice = svgDevice.parentNode;
+	}
+	
+	return svgDevice.parentNode === $.checkCanvas;
+}
+
+function addClass(e, ...args) {
+	var cls = e.getAttribute("class"),
+		classList = cls? cls.split(" "): [];
+	
+	args.forEach(className => {
+		if (classList.indexOf(className) === -1) {
+			classList.push(className);
+		}
+	});
+	
+	e.setAttribute("class", classList.join(" "));
+}
+
+function removeClass(e, className) {
+	var cls = e.getAttribute("class"),
+		classList = cls? cls.split(" "): [],
+		index;
+	
+	for (var i=1; i<arguments.length; i++) {
+		className = arguments[i];
+		
+		index = classList.indexOf(className);
+		
+		if (index !== -1) {
+			classList.splice(index, 1);
+		}
+	}
+	
+	e.setAttribute("class", classList.join(" "));
+}
+
+function hasClass(e, className) {
+	var cls = e.getAttribute("class"),
+		classList = cls? cls.split(" "): [];
+	
+	for (var i=1; i<arguments.length; i++) {
+		if (classList.indexOf(arguments[i]) == -1) {
+			return false;
+		}
+	}
+	
+	return true;
+}
+
+function onClickDevice(e) {
+	e.stopPropagation();
+
+    if (!this.id) {
+        return;
+    }
+
+	if ($.isDragging) {
+		$.isDragging = false;
+	}
+	else if (e.shiftKey) {
+		$.nodeObjectMap[this.id].check(true);
+	}
+	else if (e.ctrlKey) {
+		$.nodeObjectMap[this.id].check();
+	}
+	else {
+		[].forEach.call($.checkCanvas.querySelectorAll("g.node"), function (svgDevice) {
+			$.nodeObjectMap[svgDevice.id].reset();
+		});
+
+		$.nodeObjectMap[this.id].select();
+	}
+}
+
+function preventDefault(e) {
+	e.preventDefault();
+}
+
+function Node(id, base) {
+	const
+		svgIcon = document.createElementNS(SVG_NS, "image"),
+		svgBG = document.createElementNS(SVG_NS, "circle"),
+		svgLabel = document.createElementNS(SVG_NS, "text"),
+		svgAddr = document.createElementNS(SVG_NS, "tspan"),
+		svgName = document.createElementNS(SVG_NS, "tspan"),
+		icon = $.iconData[base.type || "unknown"];
+	
+	this.node = document.createElementNS(SVG_NS, "g");
+	this.pos = top.getPosition(id);
+	this.paths = [];
+	this.protocol = base.protocol || "";
+
+	if (!this.pos) {
+		top.setPosition(id, this.pos = {
+			x: 0,
+			y: 0,
+			parent: window.upper
+		});
+	}
+	else {
+		this.pos.x = Math.round((this.pos.x || 0) /10) *10;
+		this.pos.y = Math.round((this.pos.y ||0) /10) *10;
+	}
+
+	svgIcon.setAttribute("x", ICON_SIZE *-1 /2);
+	svgIcon.setAttribute("y", ICON_SIZE *-1 /2);
+	svgIcon.setAttribute("width", ICON_SIZE +"px");
+	svgIcon.setAttribute("height", ICON_SIZE +"px");
+	
+	svgBG.setAttribute("r", OFFSET_C);
+	svgBG.setAttribute("cx", 0);
+	svgBG.setAttribute("cy", 0);
+
+	this.node.id = id;
+	this.node.setAttribute("transform", "translate("+ this.pos.x +","+ this.pos.y +")");
+	this.node.onclick = onClickDevice;
+	
+	svgName.textContent = base.name || base.ip || "";
+	svgAddr.textContent = base.ip || base.name || "";
+	
+	svgLabel.appendChild(svgName);
+	svgLabel.appendChild(svgAddr);
+	
+	svgLabel.setAttribute("x", 0);
+	svgLabel.setAttribute("y", OFFSET_C + 16);
+	// text baseline이 글자의 밑을 기준으로 하므로 글자 크기만큼 내려준다.
+	
+	this.node.appendChild(svgBG);
+	this.node.appendChild(svgIcon);
+	this.node.appendChild(svgLabel);
+	
+	addClass(this.node, "node");
+	
+	svgIcon.setAttributeNS(XLINK_NS, "xlink:href", icon[base.protocol?"src": "disabled"] );
+}
+
+Node.prototype = {
+	layer: function (layer) {
+		layer.appendChild(this.node);
+	},
+	set: function () {
+		this.x = this.pos.x;
+		this.y = this.pos.y;
+	},
+	move: function (x, y) {
+		this.pos.x = Math.round((x + this.x) /10) *10;
+		this.pos.y = Math.round((y + this.y) /10) *10;
+
+		this.node.setAttribute("transform", "translate("+ this.pos.x +","+ this.pos.y +")");
+
+		this.paths.forEach(function (path) {
+			path.move();
+		});
+	},
+	connect: function (path) {
+		this.paths.push(path);
+	},
+	check: function (check) {
+		if (check === undefined) {
+			check = !this.checked;
+		}
+		
+		if (check) {
+			this.checked = true;
+		
+			$.checkCanvas.appendChild(this.node);
+		}
+		else {
+			this.reset();
+		}
+	},
+	select: function () {
+		if (window.selected === this) {
+			return;
+		}
+
+		this.check(true);
+
+		if (window.selected) {
+			window.selected.reset();
+		}
+
+		window.selected = this;
+	},
+	reset: function () {
+		this.checked = false;
+
+		$.nodeCanvas.appendChild(this.node);
+
+		if (window.selected === this) {
+			window.selected = undefined;
+		}
+	}
+};
+
+function Path(posFrom, posTo, option, linkArray) {
+	this.container = document.createElementNS(SVG_NS, "g");
+	
+    this.posFrom = posFrom;
+	this.posTo = posTo;
+    this.type = option.type;
+	this.path = document.createElementNS(SVG_NS, "polyline");
+    
+    this.path.setAttribute("stroke", option.color || Path.COLOR);
+    this.path.setAttribute("stroke-width", option.size || Path.WIDTH);
+
+    this.container.appendChild(this.path);
+
+    const
+        labelFrom = [],
+        labelTo = [];
+
+    if (typeof linkArray === typeof []) {
+        linkArray.forEach(id => {
+            link = $.linkData[id];
+
+            if (link.indexFrom) {
+                const tspan = document.createElementNS(SVG_NS, "tspan");
+
+                tspan.textContent = " "+ (link.indexFromName.length >= Path.TEXT_TRIM?
+                    link.indexFromName.substring(0, Path.TEXT_TRIM) +"...":
+                    link.indexFromName) +" ";
+
+                labelFrom.push(tspan);
+            }
+            
+            if (link.indexTo) {
+                const tspan = document.createElementNS(SVG_NS, "tspan");
+
+                tspan.textContent = " "+ (link.indexToName.length >= Path.TEXT_TRIM?
+                    link.indexToName.substring(0, Path.TEXT_TRIM) +"...":
+                    link.indexToName) +" ";
+
+                labelTo.push(tspan);
+            }
+        });
+    }
+
+    if (labelFrom.length > 0) {
+        this.labelFrom = document.createElementNS(SVG_NS, "text");
+
+        labelFrom.forEach(tspan => this.labelFrom.appendChild(tspan));
+
+        this.container.appendChild(this.labelFrom);
+    }
+
+    if (labelTo.length > 0) {
+        this.labelTo = document.createElementNS(SVG_NS, "text");
+
+        labelTo.forEach(tspan => this.labelTo.appendChild(tspan));
+
+        this.container.appendChild(this.labelTo);
+    }
+
+    this.move();
+}
+
+Path.prototype = {
+	move: function () {
+        const
+            x = this.posTo.x - this.posFrom.x,
+            y = this.posTo.y - this.posFrom.y;
+        var points;
+
+		this.container.setAttribute("transform", "translate("+ this.posFrom.x +","+ this.posFrom.y +")");
+
+        switch (this.type) {
+            case "clock":
+                points = "0,0 "+ x +",0 "+ x +","+ y;
+
+                if (this.labelFrom) {
+                    this.labelFrom.setAttribute("x", x /2);
+                    this.labelFrom.setAttribute("y", 0);
+                }
+
+                if (this.labelTo) {
+                    this.labelTo.setAttribute("x", x);
+                    this.labelTo.setAttribute("y", y /2);
+                }
+
+                break;
+            case "counter":
+                points = "0,0 0,"+ y +" "+ x +","+ y;
+
+                if (this.labelFrom) {
+                    this.labelFrom.setAttribute("x", 0);
+                    this.labelFrom.setAttribute("y", y /2);
+                }
+
+                if (this.labelTo) {
+                    this.labelTo.setAttribute("x", x /2);
+                    this.labelTo.setAttribute("y", y);
+                }
+
+                break;
+            default:
+                points = "0,0 "+ x +", "+ y;
+
+                if (this.labelFrom) {
+                    this.labelFrom.setAttribute("x", x /4);
+                    this.labelFrom.setAttribute("y", y /4);
+                }
+
+                if (this.labelTo) {
+                    this.labelTo.setAttribute("x", x *3 /4);
+                    this.labelTo.setAttribute("y", y *3 /4);
+                }
+        }
+        
+        this.path.setAttribute("points", points);
+    },
+    to: function (canvas) {
+        canvas.appendChild(this.container);
+    }
+};
+
+Path.TEXT_TRIM = 20;
+Path.WIDTH = 0.5;
+Path.MAX_LABEL_LEN = 16;
+Path.COLOR = "#fff";
+Path.DIFF = 6;
+
+function drawPath(nodeFrom, nodeTo, path, linkArray) {
+	if (!(nodeFrom in $.nodeObjectMap) || !(nodeTo in $.nodeObjectMap)) {
+		return;
+	}
+
+    const 
+        nodeFromObj = $.nodeObjectMap[nodeFrom],
+        nodeToObj = $.nodeObjectMap[nodeTo];
+
+	const
+        pathObject = new Path(nodeFromObj.pos, nodeToObj.pos, path, linkArray);
+
+    nodeFromObj.connect(pathObject);
+	nodeToObj.connect(pathObject);
+
+    pathObject.to($.pathCanvas);
+}
+
+function initialize() {
+	const df = document.createDocumentFragment();
+	var node, pos;
+
+	for (let id in $.nodeData) {
+        pos = top.getPosition(id);
+
+        if (pos && pos.parent === $.parent) {
+            node = new Node(id, $.nodeData[id]);
+
+            node.layer(df);
+
+            $.nodeObjectMap[id] = node;
+        }
+	}
+
+	$.nodeCanvas.appendChild(df);
+
+    const linkMap = {};
+    var link;
+
+    for (let id in $.linkData) {
+        link = $.linkData[id];
+
+        if (!linkMap[link.nodeFrom]) {
+            linkMap[link.nodeFrom] = {};
+        }
+
+        if (!linkMap[link.nodeTo]) {
+            linkMap[link.nodeTo] = {};
+        }
+
+        if (linkMap[link.nodeFrom][link.nodeTo]) {
+            linkMap[link.nodeFrom][link.nodeTo].push(id);
+        } else {
+            linkMap[link.nodeFrom][link.nodeTo] =
+            linkMap[link.nodeTo][link.nodeFrom] = [id];
+        } 
+    }
+
+    var peerMap;
+
+	for (let nodeFrom in $.pathData) {
+        peerMap = $.pathData[nodeFrom];
+
+        link = linkMap[nodeFrom];
+
+        for (let nodeTo in peerMap) {
+            drawPath(nodeFrom, nodeTo, peerMap[nodeTo], link && link[nodeTo]);
+        }
+	}
+	
+	zoom();
+
+	document.body.classList.remove("loading");
+}
+
+		</script>
+	</head>
+	
+	<body class="loading name">
+		<svg id="map">
+			<defs>
+				<circle r="35" id="circle"></circle>
+			</defs>
+			<g id="container" transform="translate(0, 0) scale(1, 1) translate(0, 0)">
+				<g id="path"></g>
+				<g id="node"></g>
+				<g id="check"></g>
+				<g id="select"></g>
+			</g>
+			<g id="selector">
+				<rect x="0" y="0" width="1" height="1"></rect>
+			</g>
+		</svg>
+		
+		<div class="bg_loading"></div>
+
+        <script src="/js/ITAhM.js"></script>
+        <script src="/js/icon.js"></script>
+		<script src="/js/Draggable.js"></script>
+		<script>
+		
+const
+	SVG_NS = "http://www.w3.org/2000/svg",
+	XLINK_NS = "http://www.w3.org/1999/xlink",
+	ICON_SIZE = 40,
+	OFFSET_C = ICON_SIZE * Math.sin(Math.PI /4);
+	//OFFSET_R = OFFSET_C - ICON_SIZE /2;
+
+const $= {
+    thread: new Worker("/js/thread.js"),
+    iconData: ITAhM.iconData,
+    nodeCanvas: document.getElementById("node"),
+    pathCanvas: document.getElementById("path"),
+    checkCanvas: document.getElementById("check"),
+    transform: document.getElementById("container").transform.baseVal,
+    nodeObjectMap: {},
+    parent: window.sessionStorage.getItem("parent") && Number(window.sessionStorage.getItem("parent")) || undefined,
+    scale: 1,
+    isDragging: false
+};
+
+$.thread.postMessage({
+    action: "initialize",
+    agent: window.localStorage.getItem("agent")
+});
+
+if (top.getAccount().level === 0) {
+	document.body.classList.add("root");
+}
+
+(function () {
+	const mapCanvas = document.getElementById("map"),
+		selector = document.getElementById("selector"),
+		area = document.querySelector("#selector>rect"),
+		SHIFT = 0,
+		CTRL = 1;
+	var schedule, rect, action, key;
+
+	new Draggable(mapCanvas);
+
+	mapCanvas.addEventListener("click", () => {
+		if ($.isDragging) {
+			$.isDragging = false;
+		}
+		else {
+			[].forEach.call($.checkCanvas.querySelectorAll("g.node"), function (svgDevice) {
+				$.nodeObjectMap[svgDevice.id].reset();
+			});
+		}
+	});
+
+	mapCanvas.addEventListener("dragon", function (e) {
+		var data = e.detail,
+			target = data.target;
+
+		if (data.shiftKey || data.ctrlKey) {
+			addClass(selector, "active");
+
+			selector.setAttribute("transform", "translate("+ data.x +","+ data.y +")");
+
+			action = "select";
+			key = data.shiftKey? SHIFT: CTRL;
+		}
+		else if (isChecked(target)) {
+            for (let checked = $.checkCanvas.querySelectorAll("g.node"), i=0, _i=checked.length; i<_i; i++) {
+                $.nodeObjectMap[checked[i].id].set();
+            }
+
+			action = "move";
+		}
+		else {
+			action = "";
+
+			for (let id in $.nodeObjectMap) {
+				$.nodeObjectMap[id].set();
+			}
+		}
+		
+		$.isDragging = true;
+	});
+
+	mapCanvas.addEventListener("drag", function (e) {
+		var data = e.detail,
+			target = data.target,
+			x = Math.round(data.dragX / $.scale /10) *10,
+			y = Math.round(data.dragY / $.scale /10) *10;
+		
+		if (action === "select") {
+			area.setAttribute("transform", "scale("+ data.dragX +","+ data.dragY +")");
+		}
+		else if (action === "move") {
+			document.body.classList.add("drag");
+			
+			[].forEach.call($.checkCanvas.querySelectorAll("g.node"), svgNode => $.nodeObjectMap[svgNode.id].move(x, y));
+		}
+		else {
+			$.transform.getItem(2).setTranslate(x, y);
+		}
+	});
+
+	mapCanvas.addEventListener("dragoff", function (e) {
+		const
+			data = e.detail,
+			target = data.target;
+		
+		if (action === "select") {
+			let
+				matrix, x1, y1, x2, y2;
+
+			matrix = selector.transform.baseVal.getItem(0).matrix;
+
+			x1 = (matrix.e - rect.width /2) /$.scale;
+			y1 = (matrix.f - rect.height /2) /$.scale;
+
+			matrix = area.transform.baseVal.getItem(0).matrix;
+
+			if (matrix.a < 0) {
+				x2 = x1;
+				x1 = x1 + matrix.a /$.scale;
+			}
+			else {
+				x2 = x1 + matrix.a /$.scale;
+			}
+			
+			if (matrix.d < 0) {
+				y2 = y1;
+				y1 = y1 + matrix.d /$.scale;
+			}
+			else {
+				y2 = y1 + matrix.d /$.scale;
+			}
+			
+			if (key === SHIFT) {
+				[].forEach.call($.nodeCanvas.querySelectorAll("g.node"), function (svgDevice) {
+					const node = $.nodeObjectMap[svgDevice.id];
+
+					if (node && x1 < node.pos.x && node.pos.x < x2 && y1 < node.pos.y && node.pos.y < y2) {
+						node.check(true);
+					}
+				});
+			}
+			else {
+				const tmp = [];
+				
+				[].forEach.call($.checkCanvas.querySelectorAll("g.node"), svgDevice => {
+					const node = $.nodeObjectMap[svgDevice.id];
+
+					if (node && x1 < node.pos.x && node.pos.x < x2 && y1 < node.pos.y && node.pos.y < y2) {
+						tmp.push(node);
+					}
+				});
+
+				[].forEach.call($.nodeCanvas.querySelectorAll("g.node"), svgDevice => {
+					const node = $.nodeObjectMap[svgDevice.id];
+
+					if (node && x1 < node.pos.x && node.pos.x < x2 && y1 < node.pos.y && node.pos.y < y2) {
+						node.check();
+					}
+				});
+
+				tmp.forEach(node => {
+					node.reset();
+				});
+			}
+
+			removeClass(selector, "active");
+		}
+		else if (action ==="move") {
+			const svg = data.destination.parentNode;
+
+			document.body.classList.remove("drag");
+			
+			if (!hasClass(svg, "group")) {
+				return;
+			}
+
+            [].forEach.call($.checkCanvas.querySelectorAll("g.node"), function (node) {
+                $.nodeObjectMap[node.id].move(0, 0);
+            });
+
+			svg.dispatchEvent(ITAhM.util.createCustomEvent("movegroup"));
+		}
+		else {
+			const matrix = $.transform.getItem(2).matrix;
+
+			for (let id in $.nodeObjectMap) {
+				$.nodeObjectMap[id].move(matrix.e, matrix.f);
+			}
+
+			$.transform.getItem(2).setTranslate(0, 0);
+		}
+	});
+
+	window.addEventListener("resize", function () {
+		clearTimeout(schedule);
+		
+		schedule = setTimeout(resize, 500);
+	});
+
+	function resize() {
+		rect = mapCanvas.getBoundingClientRect();
+		
+        $.transform.getItem(0).setTranslate(rect.width /2, rect.height /2);
+	}
+
+	resize();
+}) ();
+
+window.addEventListener("wheel", function (e) {
+	zoom(e.deltaY < 0? scale *= 1.1: scale /= 1.1);
+});
+
+function initNode(e) {
+    switch(e.data.status) {
+        case 200:
+            $.nodeData = JSON.parse(e.data.responseText);
+            
+            $.thread.onmessage = initPath;
+
+            $.thread.postMessage({action: "request", request: {
+                command: "get",
+                target: "path"
+            }});
+
+            break;
+        case -1:
+            console.trace(e.data.exception);
+        default:
+            showMessage(e.data);
+    }
+}
+
+function initPath(e) {
+    switch(e.data.status) {
+        case 200:
+            $.pathData = JSON.parse(e.data.responseText);
+            
+            $.thread.onmessage = initLink;
+            
+            $.thread.postMessage({action: "request", request: {
+                command: "get",
+                target: "link"
+            }});
+            
+            break;
+        case -1:
+            console.trace(e.data.exception);
+        default:
+            showMessage(e.data);
+    }
+}
+
+function initLink(e) {
+    switch(e.data.status) {
+        case 200:
+            $.linkData = JSON.parse(e.data.responseText);
+            
+            $.thread.onmessage = initIcon;
+            
+            $.thread.postMessage({action: "request", request: {
+                command: "get",
+                target: "icon"
+            }});
+        
+            break;
+        case -1:
+            console.trace(e.data.exception);
+        default:
+            showMessage(e.data);
+    }
+}
+
+function initIcon(e) {
+    switch(e.data.status) {
+        case 200:
+            const iconData = JSON.parse(e.data.responseText);
+
+            for (let type in iconData) {
+                $.iconData[type] = iconData[type];
+            }
+
+            $.thread.onmessage = initSetting;
+
+            $.thread.postMessage({
+                action: "request",
+                request: {
+                    command: "get",
+                    target: "setting"
+                }
+            });
+
+            break;
+        case -1:
+            console.trace(e.data.exception);
+        default:
+            showMessage(e.data);
+    }
+}
+
+function initSetting(e) {
+    switch(e.data.status) {
+        case 200:
+            const settingData = JSON.parse(e.data.responseText);
+
+            if ("display" in settingData) {
+                document.body.classList["display" in settingData && settingData.display === "name"? "add": "remove"]("name");
+            }
+            
+            if ("linkColor" in settingData) {
+                Path.COLOR = settingData.linkColor;
+            }
+
+            if ("linkSize" in settingData) {
+                Path.WIDTH = settingData.linkSize;
+            }
+            
+            initialize();
+            
+            break;
+        case -1:
+            console.trace(e.data.exception);
+        default:
+            showMessage(e.data);
+    }
+}
+
+$.thread.onmessage = initNode;
+
+$.thread.postMessage({
+    action: "request",
+    request: {
+        command: "get",
+        target: "node"
+    }
+});
+
+		</script>
+	
+	</body>
+	
+</html>

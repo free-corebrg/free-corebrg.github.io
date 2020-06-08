@@ -31,14 +31,14 @@ const modelData = {
         "UCS 6248UP": {
             name: "UCS 6248UP",
             unit: 1,
-            front: "/dc/img/front/UCS 6248UP.jpg",
-            rear: "/dc/img/rear/UCS 6248UP.jpg"
+            front: "/dc/img/front/ucs-6248up.jpg",
+            rear: "/dc/img/rear/ucs-6248up.jpg"
         },
         "UCS 6296UP": {
             name: "UCS 6296UP",
             unit: 2,
-            front: "/dc/img/front/UCS 6296UP.png",
-            rear: "/dc/img/rear/UCS 6296UP.jpg"
+            front: "/dc/img/front/ucs-6296up.png",
+            rear: "/dc/img/rear/ucs-6296up.jpg"
         }
     },
     "paloalto": {
@@ -60,7 +60,7 @@ const modelData = {
             name: "server",
             unit: 5,
             front: "/dc/img/front/ibm.jpg",
-            rear: "/dc/img/rear/828642.jpg"
+            rear: "/dc/img/rear/8286-42a.jpg"
         }
     },
     "dell": {

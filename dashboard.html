@@ -3,9 +3,7 @@
 	<head>
 		<meta charset="UTF-8">
 		<meta http-equiv="Cache-Control" content="No-Cache">
-		
 		<title>CeMS Dashboard</title>
-
 		<style>
 
 @import "/css/style.css";
@@ -187,6 +185,42 @@ nav >div::before:hover {
     background-color: #0084ff;
 }
 
+aside {
+    position: absolute; top: 0; right: 0; left: 0;
+    padding: 1em;
+    text-align: center;
+    font-weight: bold;
+    color: #fff;
+    pointer-events: none;
+}
+
+#event {
+    cursor: pointer;
+    pointer-events: all;
+}
+
+#event::before,
+#event::after {
+    display: inline-flex; align-items: center; justify-content: center;
+    background-color: #ffa500;
+    border: 1px solid #c46c00;
+    height: 3em;
+    box-sizing: border-box;
+}
+
+#event::before {
+    content: attr(data-count);
+    width: 3em; 
+	border-radius: 50%;
+}
+
+#event::after {
+    content: attr(data-message);
+    padding: 0 1em 0 1em;
+	margin-left: 1em;
+	border-radius: 1.5em 0 0 1.5em;
+}
+
 /* bounce >> */
 .bounce {
 	position: relative;
@@ -308,6 +342,7 @@ nav >div::before:hover {
 
 .list:empty,
 body:not(.name) li:nth-child(1),
+body:not(.event) #event,
 body.name li:nth-child(2) {
     display: none;
 }
@@ -322,7 +357,27 @@ body.name li:nth-child(2) {
 		
 		<script>
 
-function onEvent () {
+function onEvent (event) {
+    if (event.level == 2 && $.sound) {
+        try {
+            $.sound.play();
+        } catch (e) {
+            console.log(e);
+        };
+    }
+
+    $.event.dataset.count = (count => {
+        if (isNaN(count)) {
+            return "9+";
+        } else {
+            return ++count > 9? "9+": count;
+        }
+    }) (Number($.event.dataset.count));
+
+    $.event.dataset.message = `${event.name || event.ip || ""} ${event.message}`;
+
+    document.body.classList.add("event");
+
     $.request.execute({
         command: "get",
         target: "node"
@@ -331,7 +386,7 @@ function onEvent () {
         case 200:
             $.nodeData = JSON.parse(this.responseText);
             
-            update();
+            requestAnimationFrame(update);
 
             break;
         default:
@@ -498,6 +553,9 @@ function showMessage(xhr) {
                 <div class="list" title="송신 오류"></div>
             </section>
         </main>
+        <aside>
+            <span id="event" data-count="0" data-message="No message."></span>
+        </aside>
         <div class="bg_loading"></div>
 
         <script>
@@ -517,6 +575,7 @@ if (opener) {
 
 const $ = {
         request: new Request(),
+        event: document.getElementById("event"),
         labelMap: {}
     };
 
@@ -531,6 +590,12 @@ document.getElementById("branch").onclick = function (e) {
         `left=${window.innerWidth /4},top=${window.innerHeight /4},width=${window.innerWidth /2},height=${window.innerHeight /2}`);
 }
 
+document.getElementById("event").onclick = e => {
+    document.body.classList.remove("event");
+
+    $.event.dataset.count = 0;
+};
+
 function initialize() {
     update();
 
@@ -540,11 +605,7 @@ function initialize() {
 
     $.request.listen(onEvent);
 }
-
-$.request.execute({
-    command: "get",
-    target: "node"
-}, function () {
+function initNode() {
     switch (this.status) {
     case 200:
         $.nodeData = JSON.parse(this.responseText);
@@ -555,7 +616,33 @@ $.request.execute({
     default:
         showMessage(this);
     }
-});
+}
+
+function initSetting () {
+    switch (this.status) {
+    case 200:
+        const settingData = JSON.parse(this.responseText);
+
+        if (!("mute" in settingData) || settingData.mute === "false") {
+            $.sound = new Audio("siren.mp3");
+        }
+
+        $.request.execute({
+            command: "get",
+            target: "node"
+        }, initNode);
+
+        init
+        break;
+    default:
+        showMessage(this);
+    }
+}
+
+$.request.execute({
+    command: "get",
+    target: "setting"
+}, initSetting);
 
 		</script>
 	

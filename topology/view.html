@@ -121,16 +121,11 @@ body:not(.exit) #exit {
             <script>
 
 function showChart(id, index) {
-    const popup = window.open();
-
-    popup.sessionStorage.setItem("node_id", id);
-
     if (index) {
-        popup.sessionStorage.setItem("chart", "/chart/throughput.html");
-        popup.sessionStorage.setItem("index", index);
+        parent.showChart(id, "/chart/throughput.html", index);
+    } else {
+        parent.showChart(id);
     }
-
-    popup.location.replace("/chart.html")
 }
 
 function onEvent(event) {

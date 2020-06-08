@@ -2,6 +2,7 @@
 <html>
     <head>
         <meta charset="UTF-8">
+        <title>CeMS DataCenter</title>
         <style>
 
 @import "/css/fa.css";
@@ -115,6 +116,14 @@ function closeDialog(reset) {
 
 function resetDialog() {
     document.querySelector("iframe").contentWindow.location.reload();
+}
+
+function showChart(id) {
+    const popup = window.open();
+
+    popup.sessionStorage.setItem("node_id", id);
+
+    popup.location.replace("/chart.html");
 }
 
 function _preLoadTextures(keys, maker, type, onload) {

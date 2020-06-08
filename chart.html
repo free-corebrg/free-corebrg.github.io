@@ -45,6 +45,15 @@ function showMessage(xhr) {
 	<body>
         <iframe></iframe>
 
+        <script>
+if (opener) {
+    window.account = opener.account;
+} else if (top !== window && top.account) {
+    window.account = top.account;console.log(2);
+} else {
+    throw window.location.replace("/warning.html");
+}
+        </script>
         <script src="/js/request.js"></script>
 		<script>
 
@@ -67,7 +76,7 @@ function initialize () {
 
                 if (window.sessionStorage.getItem("chart")) {
                     document.querySelector("iframe").src = "/chart/chart.html";
-                } else {
+                } else {console.log("!");
                     document.querySelector("iframe").src = "/chart/summary.html";
                 }
 
@@ -78,24 +87,10 @@ function initialize () {
 	});	
 }
 
-function signIn(e) {
-    switch(this.status) {
-    case 200:
-        window.account = JSON.parse(this.responseText);
-        
-        initialize();
-
-        break;
-    default:
-        alert("Error!\n\n권한 없음.");
-    }
-}
 if (window.sessionStorage.getItem("node_id")) {
-    $.request.execute({
-        "command": "signin"
-    }, signIn);
+    initialize();
 } else {
-    alert("Error!\n\n잘못된 접근.");
+    throw window.location.replace("/warning.html");
 }
 
 		</script>

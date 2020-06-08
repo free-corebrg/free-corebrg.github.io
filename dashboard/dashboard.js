@@ -5,6 +5,7 @@
     Chart.defaults.global.defaultFontFamily = "'맑은 고딕', 'Arial', 'Tahoma'";
 
     const
+        INTERVAL = 10000,
         sConfig = {
             data: {
                 datasets: [{
@@ -187,6 +188,19 @@
         return bandwidth.toFixed(2) + unit[i];
     }
 
+    function showChart(id) {
+        const popup = window.open();
+
+        popup.sessionStorage.setItem("node_id", id);
+
+        if (arguments.length === 3) {
+            popup.sessionStorage.setItem("chart", arguments[1]);
+            popup.sessionStorage.setItem("index", arguments[2]);
+        }
+            
+        popup.location.replace("/chart.html");
+    }
+
     function createTopItem(value, toString, chart) {
         const 
             base = $.nodeData[value.id],
@@ -205,20 +219,11 @@
             item.title = toPercentageString(value.rate);
         }
         
-        item.onclick = function () {
-            window.sessionStorage.setItem("node_id", value.id);
-    
-            //parent.location.href = "/resource.html";
-        };
-        
-        gauge.onclick = function (e) {
+        item.onclick = e => showChart(value.id);
+        gauge.onclick = e => {
             e.stopPropagation();
             
-            window.sessionStorage.setItem("node_id", value.id);
-            window.sessionStorage.setItem("chart", chart);
-            window.sessionStorage.setItem("index", value.index);
-        
-            //parent.location.href = "/chart/chart.html";
+            showChart(value.id, chart, value.index);
         };
         
         return item;
@@ -238,15 +243,13 @@
                     setTop(section, topData[section.id.toUpperCase()]);
                 });
     
+                requestAnimationFrame(t => setTimeout(getTop, INTERVAL));
+
                 break;
             default:
                 showMessage(this);
             }
         });
-
-        setTimeout(function () {
-            requestAnimationFrame(getTop);
-        }, 10000);
     }
 
 }

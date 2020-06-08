@@ -2,6 +2,7 @@
 <html>
     <head>
         <meta charset="UTF-8">
+        <title>CeMS Map</title>
         <style>
 
 @import "/css/fa.css";
@@ -132,6 +133,14 @@ function findParentFromStage(id) {
             return parent;
         }
     }
+}
+
+function showChart(id) {
+    const popup = window.open();
+
+    popup.sessionStorage.setItem("node_id", id);
+
+    popup.location.replace("/chart.html");
 }
 
 function onEvent(event) {

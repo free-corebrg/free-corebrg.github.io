@@ -70,14 +70,6 @@ body:not(.play) #stop {
             </style>
             <script>
 
-function showChart(id) {
-    const popup = window.open();
-
-    popup.sessionStorage.setItem("node_id", id);
-
-    popup.location.replace("/chart.html")
-}
-
 function onEvent (event) {
     if (event == null || event.level < 0) {
         return;
@@ -208,7 +200,7 @@ function addDevice(id) {
             config.status = "critical";
         }
 
-        config.onclick = e => showChart(id);
+        config.onclick = e => parent.showChart(id);
     }
     
     if (location.node_name || location.node_ip) {

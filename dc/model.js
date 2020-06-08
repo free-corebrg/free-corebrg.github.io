@@ -46,7 +46,7 @@ const modelData = {
             name: "pa3040",
             unit: 2,
             front: "/dc/img/front/pa3060.png",
-            rear: "/dc/img/rea/pa3060.png"
+            rear: "/dc/img/rear/pa3060.png"
         }
     },
     "ibm": {

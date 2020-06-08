@@ -13,8 +13,8 @@ const modelData = {
         "catalyst4948": {
             name: "catalyst4948",
             unit: 1,
-            front: "/dc/img/cisco.png",
-            rear: "/dc/img/cisco-b.png"
+            front: "/dc/img/front/cisco.png",
+            rear: "/dc/img/rear/cisco.png"
         },
         "sg300-20": {
             name: "sg300-20",
@@ -45,30 +45,30 @@ const modelData = {
         "pa3040": {
             name: "pa3040",
             unit: 2,
-            front: "/dc/img/pa3060.png",
-            rear: "/dc/img/pa3060-b.png"
+            front: "/dc/img/front/pa3060.png",
+            rear: "/dc/img/rea/pa3060.png"
         }
     },
     "ibm": {
         "x3650m5": {
             name: "x3650m5",
             unit: 2,
-            front: "/dc/img/x3650m5.jpg",
-            rear: "/dc/img/x3650m5-b.jpg"
+            front: "/dc/img/front/x3650m5.jpg",
+            rear: "/dc/img/rear/x3650m5.jpg"
         },
         "server": {
             name: "server",
-            front: "/dc/img/ibm.jpg",
-            rear: "/dc/img/828642a-b.jpg",
-            unit: 5
+            unit: 5,
+            front: "/dc/img/front/ibm.jpg",
+            rear: "/dc/img/rear/828642.jpg"
         }
     },
     "dell": {
         "n3048p": {
             name: "n3048p",
             unit: 1,
-            front: "/dc/img/n3048p.jpg",
-            rear: "/dc/img/cisco-b.png"
+            front: "/dc/img/front/n3048p.jpg",
+            rear: "/dc/img/rear/cisco.png"
         }
     },
     "axgate": {

@@ -25,8 +25,8 @@ const modelData = {
         "4948E-F": {
             name: "4948E-F",
             unit: 1,
-            front: "/dc/img/front/4948E-F.png",
-            rear: "/dc/img/rear/4948E-F.png"
+            front: "/dc/img/front/4948e-f.png",
+            rear: "/dc/img/rear/4948e-f.png"
         },
         "UCS 6248UP": {
             name: "UCS 6248UP",

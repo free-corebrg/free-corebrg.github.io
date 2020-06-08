@@ -87,11 +87,22 @@ body:not(.dialog) #dialog {
 function signIn(account) {
     $.request = new Request();
 
-    window.account = account;
+    $.request.execute({
+        command: "echo"
+    }, function (e) {
+        switch (this.status) {
+        case 200:
+            window.account = account;
+            
+            document.getElementById("cems").src = "about:blank";
 
-    document.getElementById("cems").src = "about:blank";
+            document.body.classList.add("authorized");
 
-    document.body.classList.add("authorized");
+            break;
+        default:
+            document.getElementById("cems").src = "/tmp2.html";
+        }
+    });
 }
 
 function showDialog(src) {
@@ -145,22 +156,22 @@ function onSignOut() {
                     &#xf7a5;
                 </b>
                 <span title="대시보드">
-                    <a href="/dashboard.html" target="_blank">
+                    <a href="/dashboard.html" target="cems">
                         &#xf3fd;
                     </a>
                 </span>
                 <span title="토폴로지">
-                    <a href="/topology.html" target="_blank">
+                    <a href="/topology.html" target="cems">
                         &#xf0e8;
                     </a>
                 </span>
                 <span title="지도">
-                    <a href="/branch.html" target="_blank">
+                    <a href="/branch.html" target="cems">
                         &#xf3c5;
                     </a>
                 </span>
                 <span title="데이터센터">
-                    <a href="/dc.html" target="_blank">
+                    <a href="/dc.html" target="cems">
                         &#xf64f;
                     </a>
                 </span>

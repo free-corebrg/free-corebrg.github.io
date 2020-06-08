@@ -1,0 +1,111 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title></title>
+		
+		<style>
+@import "/css/fa.css";
+
+body {
+    font: 12pt "맑은고딕", Arial, Tahoma;
+    display: flex; justify-content: center;
+}
+
+a {
+    font-size: 3em; font-weight: bold;
+    display: block; margin: 1em;
+    float: left;
+    padding: 1em;
+    color: #ffffff;
+    background-color: #f06595;
+    transition: all 1s linear;
+    border: 2px ridge #f06595;
+}
+
+a::before {
+    font-family: "Font Awesome 5 Free";
+    content: "\f019";
+}
+
+a:visited,
+a:link {
+    color: #ffffff;
+    text-decoration: none;
+}
+
+a:hover {
+    color: #f06595;
+    background-color: transparent;
+}
+
+ul {
+    list-style: none;
+}
+
+h3::before {
+    font-family: "Font Awesome 5 Free";
+    content: "\f0c8";
+    display: inline-block; margin-right: 1em;
+    color: #f06595;
+}
+
+        </style>
+    </head>
+    <body>
+        <main>
+            <a href="/download/CeMSFree.exe">Download</a>
+            <h1>CeMS Free Ready?</h1>
+            <h2>CeMS 무료버전은 조건 없이 완전히 평생 무료입니다.</h2>
+            <ul>
+                <li>
+                    <h3>제약</h3>
+                    <p>CeMS 를 설치한 곳과 동일한 위치에서만 접속이 가능합니다. (http://127.0.0.1:2014)</p>
+                    <p>최적화된 기본 설정으로 동작하며 설정 변경이 불가합니다.</p>
+                </li>
+                <li>
+                    <h3>준비</h3>
+                    <p>윈도우즈 실행파일로 제공됩니다.</p>
+                    <p>
+                        시스템 속성 >> 환경변수 >> 시스템 변수 항목에 자바 설치 경로를 입력해 주세요.
+                        변수명 JAVA_HOME
+                        값 C:\Program Files\Java\jdk-12.0.1 (예시)
+                    </p>
+                    <p>
+                        Java는 OpenJDK 12 버전이 가장 안정적입니다.
+                    </p>
+                    <p>
+                        CeMS 를 실행하기 위해 폴더를 생성하고 좌측 상단의 Download 버튼을 우클릭 하여 생성된 폴더에 실행파일(CeMSFree.exe)을 저장합니다.
+                    </p>
+                    <p>
+                        실행파일을 실행시키면 폴더 내 data 폴더가 생성되고 CeMS 가 수집하는 모든 데이터가 이 곳에 저장됩니다.
+                    </p>
+                    <p>
+                        CeMS 가 정상적으로 시작되면 이 페이지는 더 이상 보이지 않습니다.
+                    </p>
+                </li>
+                <li>
+                    <h3>주의</h3>
+                    <p>
+                        CeMS 를 종료 하고자 할 때는 반드시! 콘솔창에서 Ctrl + C 클릭으로 정상 종료하세요. 비정상 종료 하는 경우 데이터베이스를 복구하지 못할 수도 있습니다.
+                    </p>
+                    <p>
+                        CeMS 가 모니터링하고자 하는 대상 노드 사이에 방화벽이 존재한다면 UDP 161 포트를 허용해 주어야 합니다.
+                    </p>
+                </li>
+            </ul>
+        </main>
+        <script>
+const form = document.querySelector("form");
+
+form.onsubmit = function (e) {
+    e.preventDefault();
+
+    this.classList.toggle("on");
+};
+
+        </script>
+        
+    </body>
+</html>

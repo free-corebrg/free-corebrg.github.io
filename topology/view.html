@@ -111,6 +111,7 @@ text {
     fill: #ffffff;
 }
 
+body:not(.label) .node tspan,
 body.name .node tspan:last-child,
 body:not(.name) .node tspan:first-child,
 body.frame nav,
@@ -119,6 +120,25 @@ body:not(.exit) #exit {
 }
             </style>
             <script>
+
+function Display () {
+    document.body.classList.add("label", "name");
+    
+    const action = [
+        () => document.body.classList.toggle("name"),
+        () => document.body.classList.toggle("label"),
+        () => {
+            document.body.classList.toggle("name");
+            document.body.classList.toggle("label");
+        }
+    ];
+
+    var i = 0;
+
+    this.update = e => {
+        action[i++ %3]();
+    }
+}
 
 function showChart(id, index) {
     if (index) {
@@ -265,9 +285,9 @@ function showMessage(xhr) {
             </script>
         </head>
         
-        <body class="name loading">
+        <body class="label name loading">
             <nav>
-                <span title="IP주소 보기" id="display">
+                <span title="라벨 표시" id="display">
                     &#xf074;
                 </span>
                 <span title="노드 찾기" id="search">
@@ -292,6 +312,7 @@ const
         positionData: parent.getPositionData(),
         upper: Number(search.get("group")) || undefined,
         focus: Number(search.get("focus")) || undefined,
+        display: new Display(),
         nodeList: [],
         shutdownList: [],
         criticalList: [],
@@ -302,7 +323,7 @@ if (parent !== top) {
     document.body.classList.add("frame");
 }
 
-document.getElementById("display").onclick = e => document.body.classList.toggle("name");
+document.getElementById("display").onclick = e => $.display.update();
 
 document.getElementById("search").onclick = function (e) {
     const keyword = prompt("노드 이름 또는 IP주소를 입력하세요.");

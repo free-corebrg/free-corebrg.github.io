@@ -292,7 +292,7 @@ $.form.onreset = function (e) {
     }, function () {
         switch (this.status) {
             case 200:
-                reloadOpener();
+                top.closeDialog(true);
 
                 break;
             default:

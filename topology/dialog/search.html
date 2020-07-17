@@ -191,7 +191,8 @@ function showMessage(xhr) {
 		<script>
 
 const $ = {
-        request: new Request()
+        request: new Request(),
+        form: document.querySelector("form")
     };
 
 document.addEventListener("keydown", function (e) {
@@ -209,61 +210,55 @@ if (top.account.level === 0) {
 	document.querySelector("input[type=submit]").disabled = false;
 }
 
-(function (form) {
-	
-	form.elements["mask"].onchange = function (e) {
-		document.getElementById("mask").textContent = this.value;
-	};
-
-	form.onsubmit = function (e) {
-		e.preventDefault();
+$.form.elements["mask"].onchange = function (e) {
+    document.getElementById("mask").textContent = this.value;
+};
     
-        document.body.classList.add("loading");
-        
-        $.request.execute({
-            command: "search",
-            network: form.elements["network"].value,
-            mask: parseInt(form.elements["mask"].options[form.elements["mask"].selectedIndex].text),
-            profile: form.elements["profile"].value || undefined
-        }, function () {
-            switch (this.status) {
-			case 200:
-				alert("자동 탐지 요청을 처리하고 있습니다.");
+$.form.onsubmit = function (e) {
+    e.preventDefault();
 
-				top.closeDialog();
+    document.body.classList.add("loading");
+    
+    $.request.execute({
+        command: "search",
+        network: this.elements["network"].value,
+        mask: parseInt(this.elements["mask"].options[this.elements["mask"].selectedIndex].text),
+        profile: this.elements["profile"].value || undefined
+    }, function () {
+        switch (this.status) {
+        case 200:
+            alert("자동 탐지 요청을 처리하고 있습니다.");
 
-				break;
-			default:
-                showMessage(this);
-			}
-        });
-	};
+            top.closeDialog();
 
-	window.initialize = function () {
-        $.request.execute({
-            command: "get",
-            target: "profile"
-        }, function () {
-            switch (this.status) {
-			case 200:
-                const
-                    df = document.createDocumentFragment(),
-                    profileData = JSON.parse(this.responseText);
+            break;
+        default:
+            showMessage(this);
+        }
+    });
+};
 
-                for (let name in profileData) {
-                    df.appendChild(document.createElement("option")).text = name;
-                }
+$.request.execute({
+    command: "get",
+    target: "profile"
+}, function () {
+    switch (this.status) {
+    case 200:
+        const
+            df = document.createDocumentFragment(),
+            profileData = JSON.parse(this.responseText);
 
-                form.elements["profile"].appendChild(df);
+        for (let name in profileData) {
+            df.appendChild(document.createElement("option")).text = name;
+        }
 
-				break;
-			default:
-                showMessage(this);
-			}
-        });
-	};
+        $.form.elements["profile"].appendChild(df);
 
-}) (document.querySelector("form"));
+        break;
+    default:
+        showMessage(this);
+    }
+});
 
 		</script>
 	

@@ -177,7 +177,7 @@ body:not(.root) .root {
 		<script>
 
 function onSelect(id, group) {
-    parent.showDialog(`/topology/dialog/${group? "group": "node"}.html?id=${id}`);
+    top.showDialog(`/topology/dialog/${group? "group": "node"}.html?id=${id}`, window);
 }
 
 function onEnter(id) {
@@ -189,7 +189,7 @@ function onEnter(id) {
 }
 
 function onLink(from, to) {
-    parent.showDialog(`/topology/dialog/path.html?from=${Math.min (from, to)}&to=${Math.max (from, to)}`);
+    top.showDialog(`/topology/dialog/path.html?from=${Math.min (from, to)}&to=${Math.max (from, to)}`, window);
 }
 
 function showMessage(xhr) {
@@ -304,11 +304,7 @@ const
         upper: Number(search.get("group")) || undefined
     };
 
-if (parent !== top) {
-    throw "";
-}
-
-if (parent.account.level === 0) {
+if (top.account.level === 0) {
 	document.body.classList.add("root");
 }
 
@@ -340,12 +336,13 @@ document.getElementById("refresh").onclick = function () {
 	window.location.reload();
 };
 
-document.getElementById("search").onclick = e => parent.showDialog("/topology/dialog/search.html");
+document.getElementById("search").onclick = e => top.showDialog("/topology/dialog/search.html", window);
+
 document.getElementById("add_node").onclick = e => {
-    parent.showDialog("/topology/dialog/node.html");
+    top.showDialog("/topology/dialog/node.html", window);
 }
 document.getElementById("add_group").onclick = e => {
-    parent.showDialog("/topology/dialog/group.html");
+    top.showDialog("/topology/dialog/group.html", window);
 }
 
 function initialize() {

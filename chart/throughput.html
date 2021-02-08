@@ -468,19 +468,18 @@ function postRealtimeRequest() {
     $.request.execute({
         command: "get",
         target: "node",
-        id: Number(window.sessionStorage.getItem("node_id")),
+        id: $.id,
         resource: true
     }, function () {
         switch (this.status) {
         case 200:
             const
-                resourceData = JSON.parse(this.responseText).resource,
-                index = window.sessionStorage.getItem("index");
+                resourceData = JSON.parse(this.responseText).resource;
 
             document.getElementById("chart_in").contentWindow
-                .putRealtimeValue(Number(resourceData[index]["1.3.6.1.2.1.2.2.1.10"]));
+                .putRealtimeValue(Number(resourceData[$.index]["1.3.6.1.2.1.2.2.1.10"]));
             document.getElementById("chart_out").contentWindow
-                .putRealtimeValue(Number(resourceData[index]["1.3.6.1.2.1.2.2.1.16"]));
+                .putRealtimeValue(Number(resourceData[$.index]["1.3.6.1.2.1.2.2.1.16"]));
             break;
         default:
             showMessage(this);
@@ -492,12 +491,9 @@ function postRealtimeRequest() {
     });
 }
 
-function draw (position, limit) {
-    window.position = position;
-    window.limit = limit;
-
-    document.getElementById("chart_in").contentWindow.draw();
-    document.getElementById("chart_out").contentWindow.draw();
+function draw (from, to) {
+    document.getElementById("chart_in").contentWindow.draw(from, to);
+    document.getElementById("chart_out").contentWindow.draw(from, to);
 }
 
 function toString(value) {
@@ -589,19 +585,21 @@ function showMessage(xhr) {
 		<script>
 
 const
+    INTERVAL = 5000,
+    search = new URLSearchParams(window.location.search),
     $ = {
-        request: new Request()
-    },
-    INTERVAL = 5000;
+        request: new Request(),
+        id: Number(search.get("id")),
+        index: search.get("index"),
+        from: Number(search.get("from")),
+        to: Number(search.get("to"))
+    };
 
 var timer;
 
 if (top.account.level == 0) {
     document.body.classList.add("root");
 }
-
-window.position = Number(window.sessionStorage.getItem("position"));
-window.limit = Number(window.sessionStorage.getItem("limit"));
 
 document.querySelector("form.critical").onsubmit = 
 document.querySelector(".set").onclick = function (e) {
@@ -611,8 +609,8 @@ document.querySelector(".set").onclick = function (e) {
         request = {
             command: "set",
             target: "critical",
-            id: Number(window.sessionStorage.getItem("node_id")),
-            index: window.sessionStorage.getItem("index"),
+            id: $.id,
+            index: $.index,
             limit: Number(document.getElementById("limit").value || "0")
         },
         oid = [ITAhM.snmp.oid.ifInOctets, ITAhM.snmp.oid.ifOutOctets];
@@ -659,8 +657,8 @@ document.querySelector(".apply").onclick = function (e) {
     $.request.execute({
         command: "set",
         target: "resource",
-        id: Number(window.sessionStorage.getItem("node_id")),
-        index: window.sessionStorage.getItem("index"),
+        id: $.id,
+        index: $.index,
         oid: ITAhM.snmp.oid.bandwidth,
         value: String(bandwidth)
     }, function () {
@@ -685,8 +683,8 @@ document.querySelector(".cancel").onclick = function (e) {
     $.request.execute({
         command: "set",
         target: "resource",
-        id: Number(window.sessionStorage.getItem("node_id")),
-        index: window.sessionStorage.getItem("index"),
+        id: $.id,
+        index: $.index,
         oid: ITAhM.snmp.oid.bandwidth
     }, function () {
         switch (this.status) {
@@ -704,16 +702,16 @@ function initCritical() {
     $.request.execute({
         command: "get",
         target: "critical",
-        id: Number(window.sessionStorage.getItem("node_id")),
-        index: window.sessionStorage.getItem("index"),
+        id: $.id,
+        index: $.index,
         oid: ITAhM.snmp.oid.ifInOctets
     }, function () {
         switch (this.status) {
             case 200:
                 document.getElementById("limit").value = JSON.parse(this.responseText).limit;
                 
-                document.getElementById("chart_in").src="/chart/throughputIn.html";
-                document.getElementById("chart_out").src="/chart/throughputOut.html";
+                document.getElementById("chart_in").src = `/chart/throughputIn.html?id=${$.id}&from=${$.from}&to=${$.to}&index=${$.index}`;
+                document.getElementById("chart_out").src = `/chart/throughputOut.html?id=${$.id}&from=${$.from}&to=${$.to}&index=${$.index}`;
 
                 break;
             default:
@@ -725,17 +723,15 @@ function initCritical() {
 $.request.execute({
     command: "get",
     target: "node",
-    id: Number(window.sessionStorage.getItem("node_id")),
+    id: $.id,
     resource: true
 }, function () {
     switch (this.status) {
     case 200:
-        const
-            nodeData = JSON.parse(this.responseText),
-            index = window.sessionStorage.getItem("index");
+        const nodeData = JSON.parse(this.responseText);
         
         if (!("resource" in nodeData) ||
-            !(index in nodeData.resource) ||
+            !($.index in nodeData.resource) ||
             !((bandwidth, ifHighSpeed, ifSpeed, name, alias) => {
                 if (!bandwidth && !ifHighSpeed && !ifSpeed) {
                     return false;
@@ -770,7 +766,7 @@ $.request.execute({
                         if (mac && Number(indexData[ITAhM.snmp.oid.ipNetToMediaType]) === 3) {
                             const i = address.indexOf(".");
 
-                            if (i > -1 && address.substring(0, i) === index) {
+                            if (i > -1 && address.substring(0, i) === $.index) {
                                 const
                                     tr = document.createElement("tr");
 
@@ -790,15 +786,15 @@ $.request.execute({
                 initCritical();
 
                 return true;
-            })(nodeData.resource[index][ITAhM.snmp.oid.bandwidth],
-            nodeData.resource[index][ITAhM.snmp.oid.ifHighSpeed],
-            nodeData.resource[index][ITAhM.snmp.oid.ifSpeed],
-            nodeData.resource[index][ITAhM.snmp.oid.ifName],
-            nodeData.resource[index][ITAhM.snmp.oid.ifAlias])) {
+            })(nodeData.resource[$.index][ITAhM.snmp.oid.bandwidth],
+            nodeData.resource[$.index][ITAhM.snmp.oid.ifHighSpeed],
+            nodeData.resource[$.index][ITAhM.snmp.oid.ifSpeed],
+            nodeData.resource[$.index][ITAhM.snmp.oid.ifName],
+            nodeData.resource[$.index][ITAhM.snmp.oid.ifAlias])) {
             
             alert ("Error!\n\n노드가 차트를 제공하지 않습니다.");
 
-            parent.location.href = window.sessionStorage.getItem("previous");
+            top.showDialog(`/chart.html?id=${$.id}`);
 
             return;
         }

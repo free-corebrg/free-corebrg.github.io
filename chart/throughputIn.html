@@ -60,7 +60,7 @@ function getFile() {
     if (window.detail) {
         rowArray.push("Index,Date,Interface throughput");
 
-        const keys = window.chartData.parseData(parent.position, parent.limit);
+        const keys = window.chartData.parseData($.from, $.to);
         
         if (keys) {
             for (let i=0, _i=keys.length, millis, bps; i<_i; i++) {
@@ -77,7 +77,7 @@ function getFile() {
     else if (window.chartData) {
         rowArray.push("Index,Date,Max,Avg,Min");
 
-        const summaryData = window.chartData.parseSummary(parent.position, parent.limit);
+        const summaryData = window.chartData.parseSummary($.from, $.to);
 
         if (summaryData) {
             const blocks = summaryData.keys;
@@ -90,7 +90,11 @@ function getFile() {
 
                     data = window.chartData.getSummary(millis);
 
-                    rowArray.push([i, parent.toDateTimeString(Number(millis)), Math.round(data.max), Math.round(data.avg), Math.round(data.min)].join(","));
+                    rowArray.push([i,
+                        parent.toDateTimeString(Number(millis)),
+                        parent.toString(Math.round(data.max)),
+                        parent.toString(Math.round(data.avg)),
+                        parent.toString(Math.round(data.min))].join(","));
                 }
             }
         }
@@ -160,8 +164,15 @@ function showMessage(xhr) {
         <script src="/js/request.js"></script>
 		<script>
 
-const $ = {
-        request: new Request()
+const
+    INTERVAL = 5000,
+    search = new URLSearchParams(window.location.search),
+    $ = {
+        request: new Request(),
+        id: Number(search.get("id")),
+        index: search.get("index"),
+        from: Number(search.get("from")),
+        to: Number(search.get("to"))
     };
 
 var
@@ -180,74 +191,72 @@ document.getElementById("realtime").onload = function (e) {
 
 (chartFrame => {
     chartFrame.onload = function (e) {
-        const date = new Date(parent.position);
+        const date = new Date($.from);
 
         this.contentWindow.initialize(
             window.chartData,
-            parent.position,
-            parent.limit,
+            $.from,
+            $.to,
             parent.max,
             "#00897b",
             parent.toString,
-            window.detail = (date.setDate(date.getDate() +1) == parent.limit));
+            window.detail = (date.setDate(date.getDate() +1) == $.to));
     };
 
     /**
      * public
      */
-    window.draw = () => {
+    window.draw = (from, to) => {
+        $.from = from;
+        $.to = to;
+        
         chartFrame.contentWindow.location.reload();
     };
 
-    function postRequest(dateArray, onProgress) {
+    function postRequest(dateArray) {
         const date = dateArray.pop();
 
         if (date) {
             $.request.execute({
                 command: "get",
                 target: "resource",
-                id: Number(window.sessionStorage.getItem("node_id")),
-                index: Number(window.sessionStorage.getItem("index")),
+                id: $.id,
+                index: $.index,
                 oid: "1.3.6.1.2.1.2.2.1.10",
                 date: date
             }, function () {
                 switch (this.status) {
                 case 200:
-                    onProgress(date, JSON.parse(this.responseText));
+                    window.chartData.unshift(date, JSON.parse(this.responseText));
+                
+                    postRequest(dateArray);
 
-                    postRequest(dateArray, onProgress);
                     break;
                 default:
                     showMessage(this);
                 }
             });
+        } else {
+            document.body.classList.remove("loading");
+
+            chartFrame.src = "/chart/base.html";
         }
     }
 
     function initialize() {
         const
-            date = new Date(Number(window.sessionStorage.getItem("start"))),
+            date = new Date($.from),
             dateArray = [];
 
         var initialized = false;
 
-        for (let millis = date.setHours(0, 0, 0, 0), end = Number(window.sessionStorage.getItem("end"));
+        for (let millis = date.setHours(0, 0, 0, 0), end = $.to;
             millis < end;
             millis = date.setDate(date.getDate() +1)) {
             dateArray.push(millis);
         }
         
-        postRequest(dateArray, (date, chartData) => {
-            window.chartData.unshift(date, chartData);
-
-            if (!initialized) {
-                document.body.classList.remove("loading");
-
-                chartFrame.src = "/chart/base.html";
-
-                initialized = true;
-            }
-        });
+        postRequest(dateArray);
     }
 
     initialize();

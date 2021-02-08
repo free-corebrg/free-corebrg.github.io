@@ -111,11 +111,11 @@ function closeDialog(reset) {
     document.body.classList.remove("dialog");
     
     if (reset) {
-        resetDialog();
+        resetParent();
     }
 }
 
-function resetDialog() {
+function resetParent() {
     document.getElementById("frame").contentWindow.location.reload();
 }
 

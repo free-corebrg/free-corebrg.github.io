@@ -197,24 +197,12 @@ function createTopItem(value, toString, chart) {
 		item.title = toPercentageString(value.rate);
 	}
 	
-	item.onclick = function () {
-        const popup = window.open();
-
-        popup.sessionStorage.setItem("node_id", value.id);
-
-        popup.location.replace("/chart.html");
-	};
+	item.onclick = e => top.showDialog(`/chart.html?id=${value.id}`);
 	
-	gauge.onclick = function (e) {
+	gauge.onclick = e => {
 		e.stopPropagation();
         
-        const popup = window.open();
-
-        popup.sessionStorage.setItem("node_id", value.id);
-        popup.sessionStorage.setItem("chart", chart);
-        popup.sessionStorage.setItem("index", value.index);
-        
-        popup.location.replace("/chart.html");
+        top.showDialog(`/chart.html?id=${value.id}&index=${value.index}&chart=${chart}`);
 	};
 	
     return item;
@@ -292,31 +280,6 @@ function showMessage(xhr) {
         </main>
         <div class="bg_loading"></div>
         
-        <script>
-if (opener) {
-    window.account = opener.account;
-
-    if (opener.onRestore) {
-        document.body.classList.add("popup");
-        
-        document.getElementById("restore").onclick = e => {
-            if (opener && !opener.closed) {
-                opener.onRestore("topTen");
-
-                close();
-            } else {
-                alert("Error!\n\n창 복원 오류.");
-            }
-        };
-    }
-} else if (top !== window && top.account) {
-    window.account = top.account;
-
-    document.body.classList.add("frame");
-} else {
-    throw window.location.replace("/warning.html");
-}
-        </script>
         <script src="/js/request.js"></script>
 		<script>
 

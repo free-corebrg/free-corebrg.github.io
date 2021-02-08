@@ -10,8 +10,9 @@
 
 @import "/css/itahm.css";
 @import "/css/fa.css";
+
 body {
-	position: fixed; top: 10px; right: 10px; bottom: 10px; left: 10px;
+	position: fixed; inset: 0 0 0 0;
 	margin: 0; padding: 0;
 }
 
@@ -221,16 +222,6 @@ nav >span:hover {
     background-color: #0084ff;
 }
 
-#close {
-    font: 20px "Font Awesome 5 Free";
-    font-weight: bold;
-    cursor: pointer;
-}
-
-#close:hover {
-    transform: scale(1.2);
-}
-
 .layout,
 body:not(.set) .set {
 	display: none;
@@ -269,12 +260,12 @@ function getDateText(mills) {
 }
 
 function initChart() {
-	var date = new Date(window.start);
+	var date = new Date($.from);
 	
 	window.dateList = [];
 	window.dayCount = 0;
 	
-	for (; date <= window.end; date.setDate(date.getDate() +1)) {
+	for (; date <= $.to; date.setDate(date.getDate() +1)) {
 		window.grid.appendChild(window.dot.cloneNode(true));
 		
 		window.dateList[window.dayCount] = date.getTime();
@@ -282,15 +273,15 @@ function initChart() {
 		window.dayCount++;
 	}
 	
-	window.leftPos = window.dateList.indexOf(window.position);
-	window.rightPos = window.dateList.indexOf(window.limit);
+	window.leftPos = window.dateList.indexOf($.from);
+	window.rightPos = window.dateList.indexOf($.to);
 	
-	document.getElementById("start").title = getDateText(window.start);
-	document.getElementById("end").title = getDateText(window.end);
+	document.getElementById("start").title = getDateText($.from);
+	document.getElementById("end").title = getDateText($.to);
 	
 	resize();
 	
-	window.chartFrame.src = window.sessionStorage.getItem("chart");
+	window.chartFrame.src = `${$.name}?id=${$.id}&index=${$.index}&from=${$.from}&to=${$.to}`;
 }
 
 function onSelectStart(e) {
@@ -424,7 +415,7 @@ function clear(e) {
                     &#xf019;
                 </span>
             </nav>
-            <div id="close" title="닫기">&#xf00d;</div>
+            <div></div>
 		</header>
 		
 		<footer>
@@ -470,7 +461,16 @@ function clear(e) {
 		<script src="/js/object.js"></script>
 		<script>
 
-const MONTH = ["01월", "02월", "03월", "04월", "05월", "06월", "07월", "08월", "09월", "10월", "11월", "12월"];
+const
+    MONTH = ["01월", "02월", "03월", "04월", "05월", "06월", "07월", "08월", "09월", "10월", "11월", "12월"],
+    search = new URLSearchParams(window.location.search),
+    $ = {
+        id: Number(search.get("id")),
+        index: Number(search.get("index")),
+        name: search.get("name"),
+        from: Number(search.get("from")),
+        to: Number(search.get("to"))
+    };
 
 var resource, index,
 	chartFrame = document.getElementById("chart"),
@@ -486,13 +486,6 @@ var resource, index,
 	next = document.getElementById("next"),
 	left, right, dayCount, blockWidth, sRect;
 
-(function (date) {
-    window.sessionStorage.setItem("position", window.position = date.setHours(0, 0, 0, 0));
-    window.sessionStorage.setItem("start", window.start = date.setDate(date.getDate() -6));
-    window.sessionStorage.setItem("end", window.end = date.setDate(date.getDate() +7));
-    window.sessionStorage.setItem("limit", window.limit = window.end);
-})(new Date());
-
 document.onselectstart = function (e) {
 	return false;
 };
@@ -501,10 +494,6 @@ document.getElementById("realtime").onclick = function () {
     if (window.chartWindow) {
         window.chartWindow.realtime(this.classList.toggle("realtime"));
     }
-};
-
-document.getElementById("close").onclick = function () {
-    window.location.replace("/chart/summary.html");
 };
 
 document.getElementById("save").onclick = function () {
@@ -541,44 +530,32 @@ new Draggable(window.selector);
 	kst.setDate(kst.getDate() -6);
 	
 	setValueAsDate(inputStart, kst);
-	
-	form.addEventListener("submit", function (e) {
-		e.preventDefault();
+    
+    form.onsubmit = e => {
+        e.preventDefault();
 		
-		var start = getValueAsDate(inputStart),
-			end = getValueAsDate(inputEnd);
-		
-		if (start.getTime() > end.getTime()) {
-			setValueAsDate(inputStart, end);
-			setValueAsDate(inputEnd, start);
-			
-			reload(end, start);
+		const
+            from = getValueAsDate(inputStart),
+			to = getValueAsDate(inputEnd);
+
+		if (from > to) {
+            search.set("from", to.getTime());
+            search.set("to", from.setDate(from.getDate() +1));
 		}
 		else {
-			reload(start, end);
+            search.set("from", from.getTime());
+            search.set("to", to.setDate(to.getDate() +1));
 		}
-		
-		document.body.classList.remove("set");
-	});
-	
-	form.addEventListener("reset", function (e) {
+
+        window.location.search = search;
+    };
+
+    form.addEventListener("reset", function (e) {
         e.preventDefault();
 
 		document.body.classList.remove("set");
     });
-    
-    function reload(start, end) {
-        window.sessionStorage.setItem("start", window.start = start.setHours(0, 0, 0, 0));
-        window.sessionStorage.setItem("position", window.position = end.setHours(0, 0, 0, 0));
-        window.sessionStorage.setItem("end", window.end = end.setDate(end.getDate() +1));
-        window.sessionStorage.setItem("limit", window.limit = window.end);
-        
-        window.chartWindow.location.reload();
-        
-        clear(window.grid);
-        
-        initChart();
-    }
+
 })(document.querySelector("form"));
 
 initChart();

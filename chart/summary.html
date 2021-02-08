@@ -1031,7 +1031,7 @@ function refresh() {
     $.request.execute({
         command: "get",
         target: "node",
-        id: Number(window.sessionStorage.getItem("node_id")),
+        id: $.id,
         resource: true
     }, onUpdate);
 }
@@ -1169,11 +1169,10 @@ function selectResource(resource, index) {
 
 //private
 function onSelectResource(chart, index) {
-    window.sessionStorage.setItem("chart", chart);
-    window.sessionStorage.setItem("index", index);
-    window.sessionStorage.setItem("previous", "/chart/summary.html");
+    const date = new Date();
 
-    window.location.replace("/chart/chart.html");
+    window.location
+        .replace(`/chart/chart.html?id=${$.id}&name=${chart}&index=${index}&from=${date.setHours(0, 0, 0, 0)}&to=${date.setDate(date.getDate() +1)}`);
 }
 
 function setDraggable() {
@@ -1387,8 +1386,11 @@ function showMessage(xhr) {
         <script src="/js/request.js"></script>
 		<script>
 
-const $ = {
-        request: new Request()
+const
+    search = new URLSearchParams(window.location.search),
+    $ = {
+        request: new Request(),
+        id: Number(search.get("id"))
     };
 
 var 
@@ -1417,27 +1419,25 @@ document.getElementById("frame_response").onload = function (e) {
     refresh();
 };
 
-if (window.sessionStorage.getItem("node_id")) {
-    $.request.execute({
-        command: "get",
-        target: "node",
-		id: Number(window.sessionStorage.getItem("node_id")),
-		resource: true
-	}, function () {
-		switch (this.status) {
-			case 200:
-				window.node = JSON.parse(this.responseText);
-                    
-                initialize(window.node);
+$.request.execute({
+    command: "get",
+    target: "node",
+    id: $.id,
+    resource: true
+}, function () {
+    switch (this.status) {
+        case 200:
+            window.node = JSON.parse(this.responseText);
+                
+            initialize(window.node);
 
-                document.getElementById("frame_response").src ="/chart/realtime_response.html";
+            document.getElementById("frame_response").src ="/chart/realtime_response.html";
 
-				break;
-			default:
-				showMessage(this);
-		}
-	});	
-}
+            break;
+        default:
+            showMessage(this);
+    }
+});
 
 		</script>
 	

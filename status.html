@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<meta http-equiv="Cache-Control" content="No-Cache">
+		<title>CeMS Status</title>
+		<style>
+
+@import "/css/style.css";
+@import "/css/fa.css";
+
+body {
+    position: fixed; inset: 0 0 0 0;
+    margin: 0; padding: 0;
+    background-color: #424242;
+    /*
+    display: flex; flex-direction: column;
+    padding: 3em; box-sizing: border-box;*/
+}
+
+.container {
+    position: relative;
+    /*flex: 1;
+    padding: 3em; box-sizing: border-box;*/
+}
+
+.container.chart {
+    margin-top: 2em;
+    padding-top: 50%;
+    /*border: 1px solid #228dff; box-sizing: border-box; 
+    box-shadow: 0 0 5px #fff, 0 0 7px #fff, 0 0 10px #fff;*/
+}
+
+.container.chart canvas {
+    position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+    /*transform: translateX(-25%);*/
+}
+
+.container .title {
+    display: flex;
+    margin-bottom: 1em;
+}
+
+.container .title >span {
+    flex: 1;
+    text-align: center;
+    padding: 0.5em;
+    border-radius: 10px 10px 0 0;
+	box-shadow: 0 0 3px #fff inset;
+    color: #ffffff;
+    text-shadow: 0 1px 1px #777777;
+}
+
+.container .title >span:nth-child(1) {
+    background-color: rgb(142, 36, 170);
+}
+
+.container .title >span:nth-child(2) {
+    background-color: rgb(246, 191, 38);
+}
+
+.container .title >span:nth-child(3) {
+    background-color: rgb(0, 137, 123);
+}
+
+.container .summary {
+    display: flex; justify-content: space-around;
+}
+
+/* bounce >> */
+.bounce {
+	position: relative;
+	width: 60px;
+	height: 120px;
+	color: #fff;
+	font-weight: bold;
+}
+
+.ball {
+	border-radius: 50%;
+	box-shadow: inset 0 -5px 15px rgba(255,255,255,0.4), inset -2px -1px 40px rgba(0,0,0,0.4), 0 0 1px #000;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+    cursor: pointer;
+}
+
+.bounce >.ball {
+	position: absolute; top: 0; left: 0;
+	width: 100%;
+	height: 50%;
+	animation: bounce 10s infinite;
+}
+
+.green.ball {
+	background-color: rgb(0, 137, 123);
+}
+
+.orange.ball {
+	background-color: rgb(246, 191, 38);
+}
+
+.bounce >.orange.ball {
+	animation-delay: .5s;
+}
+
+.red.ball {
+	background: rgb(142, 36, 170);
+}
+
+.bounce >.red.ball {
+	animation-delay: 1s;
+}
+
+.ball:before {
+	content: "";
+	position: absolute;
+	width: 50%;
+	height: 25%;
+	border-radius: 50%;
+	left: 25%;
+	top: 5%;
+	background: linear-gradient(to bottom, rgba(232,232,232,1), rgba(255,255,255,0));
+}
+
+.bounce div:last-child {
+	position: absolute; bottom: 0;
+	width: 100%;
+	height: 20%;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+
+.bounce div:last-child::after {
+	content: "";
+	width: 100%;
+	height: 80%;
+	border-radius: 50%;
+	background: rgba(100, 100, 100, 0.5);
+	animation: shadow 1s;
+	z-index: -1;
+}
+
+@keyframes bounce {
+	0% {
+		top: 0;
+		animation-timing-function: ease-in;
+	}
+	4% {
+		top: 40%;
+		height: 50%;
+		animation-timing-function: ease-out;
+	}
+	5% {
+		top: 45%;
+		height: 45%;
+		animation-timing-function: ease-in;
+	}
+	6% {
+		top: 30%;
+		height: 50%;
+		animation-timing-function: ease-out;
+	}
+	10% {
+		top: 0;
+		animation-timing-function: ease-in;
+	}
+}
+
+@keyframes shadow {
+	0% {
+		background: rgba(20, 20, 20, .1);
+		animation-timing-function: ease-in;
+	}
+	50% {
+		background: rgba(20, 20, 20, .3);
+		height: 40%;
+		width: 80%;
+		animation-timing-function: ease-out;
+	}
+	100% {
+		background: rgba(20, 20, 20, .1);
+		animation-timing-function: ease-in;
+	}
+}
+
+/* << bounce */
+
+#piechart_3d {
+    width: 100%;
+    height: 500px;
+}
+		</style>
+		
+		<script>
+
+function updateSummaryChart(normal, critical, shutdown, min) {
+    new Chart.PolarArea(document.getElementById("chart").getContext("2d"), {
+        data: {
+            datasets: [{
+                data: [shutdown, critical, normal],
+                backgroundColor: ["rgb(142, 36, 170)", "rgb(246, 191, 38)", "rgb(0, 137, 123)"],
+                borderWidth: 0
+            }],
+            labels: ["장애", "임계", "정상"]
+        },
+        options: {
+            legend: {
+                display: false
+            },
+            scale: {
+                ticks: {
+                    min: min,
+                    backdropColor: "rgba(0, 0, 0, 0)"
+                },
+                gridLines: {
+                    lineWidth: 3,
+                    color: "#c6bdea"
+                    //color: "#79fffe"
+                }
+            },
+            plugins: {
+                labels: [{
+                    render: "label",
+                    position: "outside",
+                    fontSize: 13,
+                    fontColor: "#fec763"
+                }, {
+                    render: "percentage",
+                    fontColor: "#efefef",
+                    precision: 2
+                }]
+            }/*,
+            responsive: true*/
+        }
+    }).update();
+}
+
+function updateTypeChart() {
+    const types = [], shutdown = [], critical = [], normal = [];
+    var count;
+
+    for (let label in $.typeMap) {
+        types.push(label);
+
+        count = $.typeMap[label];
+
+        shutdown.push(count.shutdown);
+        critical.push(count.critical);
+        normal.push(count.normal);
+    }
+
+    new Chart(document.getElementById("label").getContext("2d"), {
+        type: "radar",
+        data: {
+            datasets: [{
+                label: "장애",
+                backgroundColor: Chart.helpers.color("rgb(142, 36, 170)").alpha(0.2).rgbString(),
+                borderColor: "rgb(142, 36, 170)",
+                pointBackgroundColor: "rgb(142, 36, 170)",
+                data: shutdown
+            }, {
+                label: "임계",
+                backgroundColor: Chart.helpers.color("rgb(246, 191, 38)").alpha(0.5).rgbString(),
+                borderColor: "rgb(246, 191, 38)",
+                pointBackgroundColor: "rgb(246, 191, 38)",
+                data: critical
+            }, {
+                label: "정상",
+                backgroundColor: Chart.helpers.color("rgb(0, 137, 123)").alpha(0.5).rgbString(),
+                borderColor: "rgb(0, 137, 123)",
+                pointBackgroundColor: "rgb(0, 137, 123)",
+                data: normal
+            }],
+            labels: types
+        },
+        options: {
+            legend: {
+                display: false
+            },
+            scale: {
+                pointLabels: {
+                    fontSize: 13,
+                    fontColor: "#fec763",
+                    callback: label => label.length > 8? `${label.substring(0, 8)}...`: label
+                },
+                gridLines: {
+                    lineWidth: 3,
+                    circular: true,
+                    color: "#c6bdea"
+                    //color: "#9d72ff"
+                },
+                ticks: {
+                    backdropColor: "rgba(0, 0, 0, 0)"
+                }
+            }/*,
+            responsive: true*/
+        }
+    }).update();
+}
+
+function initialize() {
+    const count = {
+            shutdown: 0,
+            critical: 0,
+            normal: 0
+        };
+
+    var node, type;
+
+    for (let id in $.nodeData) {
+        node = $.nodeData[id];
+
+        if ("protocol" in node) {
+            type = node.type || "unknown";
+
+            if (!(type in $.typeMap)) {
+                $.typeMap[type] = {
+                    shutdown: 0,
+                    critical: 0,
+                    normal: 0
+                }
+            }
+
+            if ("status" in node && !node.status) {
+                count.shutdown++;
+
+                $.typeMap[type].shutdown++;
+            }
+            else if ("critical" in node && node.critical) {
+                count.critical++;
+
+                $.typeMap[type].critical++;
+            }
+            else {
+                count.normal++;
+
+                $.typeMap[type].normal++;
+            }
+        }
+    }
+
+    document.getElementById("normal").textContent = count.normal;
+    document.getElementById("critical").textContent = count.critical;
+    document.getElementById("shutdown").textContent = count.shutdown;
+
+    updateSummaryChart(count.normal, count.critical, count.shutdown, -Math.max(count.normal, count.critical, count.shutdown));
+    updateTypeChart();
+
+    new BroadcastChannel("bc_event").onmessage = e => window.location.reload();
+}
+
+function showMessage(xhr) {
+    switch (xhr.status) {
+    case 401:
+        alert(NOTICE_SESS_EXPIRE["kr"]);
+
+        break;
+    default:
+        alert(ERROR_RES_CODE(xhr.status)["kr"]);
+    }
+
+    try {
+        console.log(JSON.parse(xhr.responseText).error);
+    } catch (e) {}
+}
+
+		</script>
+	</head>
+
+	<body class="loading">
+        <div class="container summary">
+            <div class="title">
+                <span data-color="#00ff00">장애</span>
+                <span>임계</span>
+                <span>정상</span>
+            </div>
+            <div class="summary">
+                <div class="bounce">
+                    <div id="shutdown" class="ball red"></div>
+                    <div></div>
+                </div>
+                <div class="bounce">
+                    <div id="critical"  class="ball orange"></div>
+                    <div></div>
+                </div>
+                <div class="bounce">
+                    <div id="normal"  class="ball green"></div>
+                    <div></div>
+                </div>
+            </div>
+        </div>
+        <div class="container chart status">
+            <canvas id="chart"></canvas>
+        </div>
+        <div class="container chart label">
+            <canvas id="label"></canvas>
+        </div>
+        
+        <div class="bg_loading"></div>
+
+        <script src="/js/request.js"></script>
+        <script src="/js/constants.js"></script>
+        <script src="/js/import/chart.js"></script>
+        <script src="/js/import/chartPluginLabels.js"></script>
+        
+		<script>
+
+Chart.defaults.global.defaultFontColor = "#efefef";
+Chart.defaults.global.defaultFontFamily = "'맑은 고딕', 'Arial', 'Tahoma'";
+
+const $ = {
+        request: new Request(),
+        typeMap: {}
+    };
+/*
+document.getElementById("normal").onclick = e => top.open("/node.html?status=normal", "main");
+document.getElementById("critical").onclick = e => top.open("/node.html?status=critical", "main");
+document.getElementById("shutdown").onclick = e => top.open("/node.html?status=shutdown", "main");
+*/
+function initNode() {
+    switch (this.status) {
+    case 200:
+        $.nodeData = JSON.parse(this.responseText);
+        
+        initialize();
+
+        document.body.classList.remove("loading");
+
+        break;
+    default:
+        showMessage(this);
+    }
+}
+
+$.request.execute({
+    command: "get",
+    target: "node"
+}, initNode);
+
+		</script>
+	
+	</body>
+</html>

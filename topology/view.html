@@ -141,10 +141,15 @@ function Display () {
 }
 
 function showChart(id, index) {
-    if (index) {
-        parent.showChart(id, "/chart/throughput.html", index);
-    } else {
-        parent.showChart(id);
+    switch (arguments.length) {
+    case 1:
+        top.showDialog(`/chart.html?id=${id}`);
+
+        break;
+    case 2:
+        top.showDialog(`/chart.html?id=${id}&chart=/chart/throughput.html&index=${index}`);
+
+        break;
     }
 }
 
@@ -318,10 +323,6 @@ const
         criticalList: [],
         title: createTitle()
     };
-
-if (parent !== top) {
-    document.body.classList.add("frame");
-}
 
 document.getElementById("display").onclick = e => $.display.update();
 
@@ -620,12 +621,6 @@ function initSetting(e) {
         case 200:
             $.settingData = JSON.parse(this.responseText);
             
-            if ("background" in $.settingData) {/*
-                document.body.style.backgroundImage = "url("+ $.settingData.background +")";
-
-                document.body.classList.add("background");*/
-            }
-
             if ("display" in $.settingData && $.settingData.display === "address") {
                 document.body.classList.remove("name");
             }

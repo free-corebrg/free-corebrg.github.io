@@ -52,8 +52,20 @@ nav >span:active {
     transform: translateY(0);
 }
 
+article {
+    flex: 1;
+    display: flex;
+}
+
+aside {
+    flex: none;
+    position: relative;
+    z-index: 1;
+}
+
 main {
     flex: 1;
+    position: relative;
 }
 
 iframe {
@@ -64,6 +76,7 @@ iframe {
 #dialog {
 	position: fixed; top: 0; right: 0; bottom: 0; left: 0;
 	padding: 0; margin: 0;
+    z-index: 2;
 }
 
 a:link,
@@ -92,23 +105,26 @@ function signIn(account) {
     }, function (e) {
         switch (this.status) {
         case 200:
-            window.account = account;
-            
-            document.getElementById("cems").src = "about:blank";
-
-            document.body.classList.add("authorized");
-
             break;
         default:
-            document.getElementById("cems").src = "/download.html";
+            throw document.getElementById("cems").src = "/download.html";
         }
+
+        window.account = account;
+            
+        document.getElementById("cems").src = "about:blank";
+
+        document.getElementById("status").src = "/status.html";
+
+        document.body.classList.add("authorized");
     });
 }
-
-function showDialog(src) {
+function showDialog(src, parent) {
     const dialog = document.getElementById("dialog");
 
     dialog.onload = function () {
+        $.parent = parent;
+
 		document.body.classList.add("dialog");
 	};
 
@@ -119,12 +135,16 @@ function closeDialog(reset) {
     document.body.classList.remove("dialog");
     
     if (reset) {
-        resetDialog();
+        resetParent();
     }
+
+    delete $.parent;
 }
 
-function resetDialog() {
-    document.getElementById("cems").contentWindow.location.reload();
+function resetParent() {
+    if ($.parent) {
+        $.parent.location.reload();
+    }
 }
 
 function clearLog() {
@@ -135,18 +155,6 @@ function clearLog() {
 	document.body.classList.remove("event");
 }
 
-function onSignOut() {
-    if (!confirm(CONFIRM_SIGNOUT["kr"])) {
-        return;
-    }
-
-    $.request.execute({
-        command: "signout"
-    }, function () {
-        window.location.reload();
-    });
-}
-
         </script>
     </head>
     <body>
@@ -155,28 +163,28 @@ function onSignOut() {
                 <b>
                     &#xf7a5;
                 </b>
-                <span title="대시보드">
-                    <a href="/dashboard.html" target="_blank">
-                        &#xf3fd;
-                    </a>
-                </span>
                 <span title="토폴로지">
-                    <a href="/topology.html" target="_blank">
+                    <a href="/topology.html" target="cems">
                         &#xf0e8;
                     </a>
                 </span>
+                <!--span title="대시보드">
+                    <a href="/dashboard.html" target="cems">
+                        &#xf3fd;
+                    </a>
+                </span>
                 <span title="지도">
-                    <a href="/branch.html" target="_blank">
+                    <a href="/branch.html" target="cems">
                         &#xf3c5;
                     </a>
                 </span>
                 <span title="데이터센터">
-                    <a href="/dc.html" target="_blank">
+                    <a href="/dc.html" target="cems">
                         &#xf64f;
                     </a>
-                </span>
+                </span-->
                 <span title="Top Ten">
-                    <a href="/topTen.html" target="_blank">
+                    <a href="/topTen.html" target=cems>
                         &#xf160;
                     </a>
                 </span>
@@ -209,13 +217,16 @@ function onSignOut() {
                     </a>
                 </span>
             </nav>
-            <div title="Signout">
-                <span id="signout"></span>
-            </div>
         </header>
-        <main>
-            <iframe name="cems" id="cems"></iframe>
-        </main>
+        <article>
+            <aside>
+                <iframe name="status" id="status"></iframe>
+                <div id="tab"></div>
+            </aside>
+            <main>
+                <iframe name="cems" id="cems"></iframe>
+            </main>
+        </article>
         <iframe id="dialog"></iframe>
 
         <script src="/js/google.js"></script>

@@ -281,20 +281,20 @@ function getFile() {
     if (window.detail) {
         rowArray.push("Index,Date,Physical memory");
 
-        const keys = window.chartData.parseData(window.position, window.limit);
+        const keys = window.chartData.parseData($.from, $.to);
         
         if (keys) {
             for (let i=0, _i=keys.length, millis; i<_i; i++) {
                 millis = keys[i];
                 
-                rowArray.push([i, toDateTimeString(millis), toString(Number(window.chartData.getData(millis)))].join(","));
+                rowArray.push([i, toDateTimeString(Number(millis)), toString(Number(window.chartData.getData(millis)))].join(","));
             }
         }
     }
     else if (window.chartData) {
         rowArray.push("Index,Date,Max,Avg,Min");
 
-        const summaryData = window.chartData.parseSummary(window.position, window.limit);
+        const summaryData = window.chartData.parseSummary($.from, $.to);
 
         if (summaryData) {
             const blocks = summaryData.keys;
@@ -307,7 +307,7 @@ function getFile() {
 
                     data = window.chartData.getSummary(millis);
 
-                    rowArray.push([i, toDateTimeString(millis), data.max, data.avg.toFixed(2), data.min].join(","));
+                    rowArray.push([i, toDateTimeString(millis), toString(data.max), toString(data.avg), toString(data.min)].join(","));
                 }
             }
         }
@@ -336,7 +336,7 @@ function postRealtimeRequest(realtimeData) {
     $.request.execute({
         command: "get",
         target: "node",
-        id: Number(window.sessionStorage.getItem("node_id")),
+        id: $.id,
         resource: true
     }, function () {
         switch (this.status) {
@@ -344,9 +344,7 @@ function postRealtimeRequest(realtimeData) {
             const resourceData = JSON.parse(this.responseText).resource;
 
             try {
-                const index = window.sessionStorage.getItem("index");
-
-                realtimeData.data.put(Number(resourceData[index]["1.3.6.1.2.1.25.2.3.1.6"]) * Number(resourceData[index]["1.3.6.1.2.1.25.2.3.1.4"]));
+                realtimeData.data.put(Number(resourceData[$.index]["1.3.6.1.2.1.25.2.3.1.6"]) * Number(resourceData[$.index]["1.3.6.1.2.1.25.2.3.1.4"]));
 
                 document.getElementById("realtime").contentWindow.draw(realtimeData);
             } catch (e) {}
@@ -422,10 +420,15 @@ function showMessage(xhr) {
 		<script>
 
 const
+    INTERVAL = 5000,
+    search = new URLSearchParams(window.location.search),
     $ = {
-        request: new Request()
-    },
-    INTERVAL = 5000;
+        request: new Request(),
+        id: Number(search.get("id")),
+        index: search.get("index"),
+        from: Number(search.get("from")),
+        to: Number(search.get("to"))
+    };
 
 var setRealtime = false;
 
@@ -452,8 +455,8 @@ document.querySelector(".apply").onclick = function (e) {
     $.request.execute({
         command: "set",
         target: "critical",
-        id: Number(window.sessionStorage.getItem("node_id")),
-        index: window.sessionStorage.getItem("index"),
+        id: $.id,
+        index: $.index,
         oid: ITAhM.snmp.oid.hrStorageUsed,
         limit: Number(document.getElementById("limit").value || "0")
     }, function () {
@@ -471,89 +474,81 @@ document.querySelector(".apply").onclick = function (e) {
 
 (chartFrame => {
     chartFrame.onload = e => {
-        const date = new Date(window.position);
+        const date = new Date($.from);
 
         chartFrame.contentWindow.initialize(
             window.chartData,
-            window.position,
-            window.limit,
+            $.from,
+            $.to,
             window.max,
             "#0084ff",
             toString,
-            window.detail = (date.setDate(date.getDate() +1) == window.limit));
+            window.detail = (date.setDate(date.getDate() +1) == $.to));
     };
 
     /**
      * public
      */
     window.draw = (position, limit) => {
-        window.position = position;
-        window.limit = limit;	
+        $.from = position;
+        $.to = limit;	
         
         chartFrame.contentWindow.location.reload();
     };
 
-    function postRequest(dateArray, onProgress) {
+    function postRequest(dateArray) {
         const date = dateArray.pop();
 
         if (date) {
             $.request.execute({
                 command: "get",
                 target: "resource",
-                id: Number(window.sessionStorage.getItem("node_id")),
-                index: Number(window.sessionStorage.getItem("index")),
+                id: $.id,
+                index: $.index,
                 oid: "1.3.6.1.2.1.25.2.3.1.6",
                 date: date
             }, function () {
                 switch (this.status) {
                 case 200:
-                    onProgress(date, JSON.parse(this.responseText));
+                    window.chartData.unshift(date, JSON.parse(this.responseText));
 
-                    postRequest(dateArray, onProgress);
+                    postRequest(dateArray);
                     break;
                 default:
                     showMessage(this);
                 }
             });
+        } else {
+            document.body.classList.remove("loading");
+
+            chartFrame.src = "/chart/base.html";
         }
     }
 
     function initialize() {
-        window.position = Number(window.sessionStorage.getItem("position"));
-        window.limit = Number(window.sessionStorage.getItem("limit"));
         window.chartData = new ChartData();
 
         const
-            date = new Date(Number(window.sessionStorage.getItem("start"))),
+            date = new Date($.from),
             dateArray = [];
 
         var initialized = false;
 
-        for (let millis = date.setHours(0, 0, 0, 0), end = Number(window.sessionStorage.getItem("end"));
+        for (let millis = date.setHours(0, 0, 0, 0), end = $.to;
             millis < end;
             millis = date.setDate(date.getDate() +1)) {
             dateArray.push(millis);
         }
         
-        postRequest(dateArray, (date, chartData) => {
-            window.chartData.unshift(date, chartData);
-
-            if (!initialized) {
-                document.body.classList.remove("loading");
-
-                chartFrame.src = "/chart/base.html";
-
-                initialized = true;
-            }
-        });
+        postRequest(dateArray);
     }
 
     function initCritical() {
         $.request.execute({
             command: "get",
             target: "critical",
-            id: Number(window.sessionStorage.getItem("node_id")),
-            index: window.sessionStorage.getItem("index"),
+            id: $.id,
+            index: $.index,
             oid: ITAhM.snmp.oid.hrStorageUsed
         }, function () {
             switch (this.status) {
@@ -572,17 +567,15 @@ document.querySelector(".apply").onclick = function (e) {
     $.request.execute({
         command: "get",
         target: "node",
-        id: Number(window.sessionStorage.getItem("node_id")),
+        id: $.id,
         resource: true
     }, function () {
         switch (this.status) {
         case 200:
-            const
-                nodeData = JSON.parse(this.responseText),
-                index = window.sessionStorage.getItem("index");
+            const nodeData = JSON.parse(this.responseText);
             
             if (!("resource" in nodeData) ||
-                !(index in nodeData.resource) ||
+                !($.index in nodeData.resource) ||
                 !((units, size) => {
                     if (!units || !size) {
                         return false;
@@ -597,11 +590,11 @@ document.querySelector(".apply").onclick = function (e) {
                     initCritical();
 
                     return true;
-                })(nodeData.resource[index]["1.3.6.1.2.1.25.2.3.1.4"], nodeData.resource[index]["1.3.6.1.2.1.25.2.3.1.5"])) {
+                })(nodeData.resource[$.index]["1.3.6.1.2.1.25.2.3.1.4"], nodeData.resource[$.index]["1.3.6.1.2.1.25.2.3.1.5"])) {
                 
                 alert ("Error!\n\n노드가 차트를 제공하지 않습니다.");
 
-                parent.location.href = window.sessionStorage.getItem("previous");
+                top.showDialog(`/chart.html?id=${$.id}`);
 
                 return;
             }

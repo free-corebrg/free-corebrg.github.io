@@ -265,7 +265,7 @@ function onCreateLink (e) {
     }, function () {
         switch(this.status) {
         case 200:
-            top.resetDialog();
+            top.resetParent();
 
             window.location.reload();
 
@@ -326,7 +326,7 @@ function onSaveLink (e) {
         case 409:                
             alert("Error!\n\n링크 수정 실패.\n"+"이미 다른 노드와 연결된 인터페이스 일 수 있습니다.");
         case 200:
-            top.resetDialog();
+            top.resetParent();
             
             window.location.reload();
 
@@ -373,7 +373,7 @@ function onRemoveLink (e) {
         case 409:                
             alert("Error!\n\n링크 삭제 실패.");
         case 200:
-            top.resetDialog();
+            top.resetParent();
 
             window.location.reload();
 

@@ -7,17 +7,47 @@
 		<title>CeMS Chart</title>
 
 		<style>
+@import "/css/fa.css";
 
 body {
     position: fixed; top: 0; right: 0; bottom: 0; left: 0;
     padding: 0; margin: 0;
 	background-color: #4d525a;
+    display: flex; flex-direction: column;
+}
+
+nav {
+    flex: none; height: auto;
+    font: bold 20px 'Font Awesome 5 Free';
+    color: #aaaaaa;
+    flex: none;
+    padding: 0.5em;
+    display: flex; justify-content: space-between;
+}
+
+nav span {
+    display: inline-block;
+    cursor: pointer;
+}
+
+nav span:hover {
+    transform: scale(1.2);
+    color: #ffffff;
+}
+
+main {
+    flex: 1;
 }
 
 iframe {
     width: 100%; height: 100%;
     padding: 0; margin: 0;
     border: none;
+}
+
+body.chart nav .summary,
+body:not(.chart) nav .chart {
+    display: none
 }
 
 		</style>
@@ -43,55 +73,65 @@ function showMessage(xhr) {
 	</head>
 
 	<body>
-        <iframe></iframe>
+        <nav>
+            <div>
+                <span id="close" class="summary" title="이전으로">&#xf536;</span>
+                <span id="back" class="chart" title="이전으로">&#xf536;</span>
+            </div>
+            <div>
+            </div>
+        </nav>
+        <main>
+            <iframe></iframe>
+        </main>
 
-        <script>
-if (opener) {
-    window.account = opener.account;
-} else if (top !== window && top.account) {
-    window.account = top.account;
-} else {
-    throw window.location.replace("/warning.html");
-}
-        </script>
         <script src="/js/request.js"></script>
 		<script>
 
-const $ = {
-        request: new Request()
+const
+    search = new URLSearchParams(window.location.search),
+    $ = {
+        request: new Request(),
+        id: Number(search.get("id")),
+        chart: search.get("chart"),
+        index: search.get("index")
     };
 
-function initialize () {
-    $.request.execute({
-        command: "get",
-        target: "node",
-		id: Number(window.sessionStorage.getItem("node_id")),
-		resource: true
-	}, function () {
-		switch (this.status) {
-			case 200:
-				const node = JSON.parse(this.responseText);
-                
-                document.title = node.name || node.ip || "Chart";
+document.querySelector("iframe").onload = function (e) {
+    document.body.classList[this.contentWindow.location.pathname.indexOf("summary") === -1? "add": "remove"]("chart");
+};
 
-                if (window.sessionStorage.getItem("chart")) {
-                    document.querySelector("iframe").src = "/chart/chart.html";
-                } else {
-                    document.querySelector("iframe").src = "/chart/summary.html";
-                }
+document.getElementById("close").onclick = e => top.closeDialog();
 
-				break;
-			default:
-				showMessage(this);
-		}
-	});	
-}
+document.getElementById("back").onclick = e =>
+    document.querySelector("iframe").contentWindow.location.replace(`/chart/summary.html?id=${$.id}`);
 
-if (window.sessionStorage.getItem("node_id")) {
-    initialize();
-} else {
-    throw window.location.replace("/warning.html");
-}
+$.request.execute({
+    command: "get",
+    target: "node",
+    id: $.id,
+    resource: true
+}, function () {
+    switch (this.status) {
+        case 200:
+            const
+                node = JSON.parse(this.responseText),
+                date = new Date();
+
+            document.title = node.name || node.ip || "Chart";
+
+            if ($.chart && $.index) {
+                document.querySelector("iframe").src
+                    = `/chart/chart.html?id=${$.id}&index=${$.index}&name=${$.chart}&from=${date.setHours(0, 0, 0, 0)}&to=${date.setDate(date.getDate() +1)}`;
+            } else {
+                document.querySelector("iframe").src = `/chart/summary.html?id=${$.id}`;
+            }
+
+            break;
+        default:
+            showMessage(this);
+    }
+});	
 
 		</script>
 	
